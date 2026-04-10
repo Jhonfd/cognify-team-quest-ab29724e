@@ -41,6 +41,39 @@ export type Database = {
         }
         Relationships: []
       }
+      questions: {
+        Row: {
+          category: string
+          correct_index: number
+          created_at: string
+          created_by: string | null
+          id: string
+          options: string[]
+          question: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          correct_index: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          options: string[]
+          question: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          correct_index?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          options?: string[]
+          question?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       quiz_results: {
         Row: {
           completed_at: string
