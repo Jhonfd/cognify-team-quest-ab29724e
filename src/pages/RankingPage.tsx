@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, Medal, ChevronDown, ChevronUp } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Trophy, Medal, ChevronDown, ChevronUp, FileSpreadsheet, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 interface QuizDetail {
   subject: string;
@@ -17,6 +22,7 @@ interface RankingEntry {
 }
 
 export default function RankingPage() {
+  const { userRole } = useAuth();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
@@ -72,11 +78,77 @@ export default function RankingPage() {
     setExpandedUser(prev => prev === userId ? null : userId);
   };
 
+  const buildReportRows = () => {
+    const rows: string[][] = [];
+    ranking.forEach((entry, idx) => {
+      entry.quizzes.forEach(q => {
+        const pct = Math.round((q.score / q.total_questions) * 100);
+        rows.push([
+          String(idx + 1),
+          entry.name,
+          q.subject,
+          `${q.score}/${q.total_questions}`,
+          `${pct}%`,
+          new Date(q.completed_at).toLocaleDateString(),
+        ]);
+      });
+    });
+    return rows;
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text('Informe de Calificaciones - Cognify', 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Generado: ${new Date().toLocaleString()}`, 14, 28);
+
+    autoTable(doc, {
+      startY: 35,
+      head: [['#', 'Estudiante', 'Temática', 'Resultado', '% Acierto', 'Fecha']],
+      body: buildReportRows(),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [79, 70, 229] },
+    });
+
+    doc.save('informe_calificaciones.pdf');
+  };
+
+  const exportExcel = () => {
+    const rows = buildReportRows();
+    const wsData = [['#', 'Estudiante', 'Temática', 'Resultado', '% Acierto', 'Fecha'], ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Calificaciones');
+
+    // Summary sheet
+    const summaryData = [
+      ['Estudiante', 'Puntaje Total', 'Quizzes Realizados'],
+      ...ranking.map(e => [e.name, e.total_score, e.quizzes.length]),
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, ws2, 'Resumen');
+
+    XLSX.writeFile(wb, 'informe_calificaciones.xlsx');
+  };
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Ranking del equipo</h1>
-        <p className="text-muted-foreground">Clasificación por puntaje acumulado · Haz clic para ver detalles</p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Ranking del equipo</h1>
+          <p className="text-muted-foreground">Clasificación por puntaje acumulado · Haz clic para ver detalles</p>
+        </div>
+        {userRole === 'admin' && ranking.length > 0 && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={exportPDF} className="gap-2">
+              <FileText className="w-4 h-4" /> Exportar PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportExcel} className="gap-2">
+              <FileSpreadsheet className="w-4 h-4" /> Exportar Excel
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="glass-card overflow-hidden">
