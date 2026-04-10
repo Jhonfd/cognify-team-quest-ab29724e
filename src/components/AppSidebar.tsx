@@ -1,4 +1,4 @@
-import { Brain, LayoutDashboard, Trophy, BookOpen, LogOut } from 'lucide-react';
+import { Brain, LayoutDashboard, Trophy, BookOpen, LogOut, Settings } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -13,14 +13,17 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 
-const items = [
+const baseItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Quiz', url: '/quiz', icon: BookOpen },
   { title: 'Ranking', url: '/ranking', icon: Trophy },
 ];
 
 export function AppSidebar() {
-  const { signOut, user } = useAuth();
+  const { signOut, user, userRole } = useAuth();
+  const items = userRole === 'admin'
+    ? [...baseItems, { title: 'Admin', url: '/admin', icon: Settings }]
+    : baseItems;
 
   return (
     <Sidebar collapsible="icon">
