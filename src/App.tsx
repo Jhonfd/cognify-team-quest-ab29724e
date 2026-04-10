@@ -8,6 +8,7 @@ import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
 import QuizPage from "./pages/QuizPage";
 import RankingPage from "./pages/RankingPage";
+import AdminPage from "./pages/AdminPage";
 import AppLayout from "./components/AppLayout";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +35,7 @@ function AppRoutes() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/quiz" element={<QuizPage />} />
         <Route path="/ranking" element={<RankingPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
