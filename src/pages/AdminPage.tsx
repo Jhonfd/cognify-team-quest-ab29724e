@@ -114,9 +114,17 @@ function StudentsTab({ toast }: { toast: any }) {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    const { error } = await supabase.from('profiles').delete().eq('id', deleteId);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
-    toast({ title: 'Eliminado', description: 'Perfil eliminado' });
+    // Find the user_id from the profile
+    const profile = profiles.find(p => p.id === deleteId);
+    if (!profile) return;
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: { user_id: profile.user_id },
+    });
+    if (error || data?.error) {
+      toast({ title: 'Error', description: error?.message || data?.error, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Eliminado', description: 'Usuario eliminado completamente' });
     setDeleteId(null);
     fetch();
   };
