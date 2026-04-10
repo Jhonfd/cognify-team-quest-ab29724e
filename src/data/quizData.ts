@@ -109,4 +109,20 @@ export const quizCategories: QuizCategory[] = [
       { question: '¿Cuál es el planeta más cercano al Sol?', options: ['Venus', 'Mercurio', 'Marte', 'Tierra'], correctIndex: 1 },
     ],
   },
+  {
+    id: 'computing',
+    name: 'Sistemas & Computación',
+    icon: '💻',
+    description: 'Redes, programación, hardware y sistemas operativos',
+    questions: [
+      { question: '¿Cuántos bits tiene un byte?', options: ['4', '8', '16', '32'], correctIndex: 1 },
+      { question: '¿Qué significa CPU?', options: ['Central Processing Unit', 'Computer Personal Unit', 'Central Program Utility', 'Core Processing Unit'], correctIndex: 0 },
+      { question: '¿Cuál es el sistema numérico que usa la computadora?', options: ['Decimal', 'Octal', 'Binario', 'Hexadecimal'], correctIndex: 2 },
+      { question: '¿Qué protocolo se usa para enviar correos electrónicos?', options: ['HTTP', 'FTP', 'SMTP', 'TCP'], correctIndex: 2 },
+      { question: '¿Qué capa del modelo OSI maneja direcciones IP?', options: ['Enlace de datos', 'Red', 'Transporte', 'Aplicación'], correctIndex: 1 },
+      { question: '¿Qué tipo de memoria es volátil?', options: ['ROM', 'SSD', 'RAM', 'HDD'], correctIndex: 2 },
+      { question: '¿Cuál es la complejidad de una búsqueda binaria?', options: ['O(n)', 'O(log n)', 'O(n²)', 'O(1)'], correctIndex: 1 },
+      { question: '¿Qué sistema operativo es de código abierto?', options: ['Windows', 'macOS', 'Linux', 'iOS'], correctIndex: 2 },
+    ],
+  },
 ];
