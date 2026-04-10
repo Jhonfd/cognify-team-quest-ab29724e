@@ -3,14 +3,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Brain } from 'lucide-react';
+import { Brain, Shield, GraduationCap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+type AppRole = 'admin' | 'student';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [role, setRole] = useState<AppRole>('student');
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
@@ -27,7 +30,7 @@ export default function AuthPage() {
           setLoading(false);
           return;
         }
-        await signUp(email, password, name);
+        await signUp(email, password, name, role);
         toast({ title: '¡Cuenta creada!', description: 'Revisa tu correo para confirmar tu cuenta.' });
       }
     } catch (err: any) {
@@ -52,10 +55,44 @@ export default function AuthPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre</Label>
-              <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Tu nombre" />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="name">Nombre</Label>
+                <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Tu nombre" />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Rol</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRole('student')}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                      role === 'student'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <GraduationCap className="w-6 h-6" />
+                    <span className="text-sm font-medium">Estudiante</span>
+                    <span className="text-xs opacity-70">Acceso a quizzes y ranking</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('admin')}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                      role === 'admin'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <Shield className="w-6 h-6" />
+                    <span className="text-sm font-medium">Administrador</span>
+                    <span className="text-xs opacity-70">Todos los permisos</span>
+                  </button>
+                </div>
+              </div>
+            </>
           )}
           <div className="space-y-2">
             <Label htmlFor="email">Correo electrónico</Label>
