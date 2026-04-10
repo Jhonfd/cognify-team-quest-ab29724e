@@ -20,7 +20,7 @@ interface Category {
   count: number;
 }
 
-const CAT_META: Record<string, { name: string; icon: string; description: string }> = {
+const DEFAULT_CAT_META: Record<string, { name: string; icon: string; description: string }> = {
   algebra: { name: 'Álgebra', icon: '📐', description: 'Ecuaciones, funciones y expresiones algebraicas' },
   geometry: { name: 'Geometría', icon: '📏', description: 'Figuras, áreas, volúmenes y teoremas' },
   physics: { name: 'Física', icon: '⚡', description: 'Mecánica, energía, fuerzas y movimiento' },
@@ -53,9 +53,9 @@ export default function QuizPage() {
       const cats: Category[] = Object.entries(counts).map(([id, count]) => ({
         id,
         count,
-        name: CAT_META[id]?.name ?? id,
-        icon: CAT_META[id]?.icon ?? '📝',
-        description: CAT_META[id]?.description ?? '',
+        name: DEFAULT_CAT_META[id]?.name ?? id,
+        icon: DEFAULT_CAT_META[id]?.icon ?? '📝',
+        description: DEFAULT_CAT_META[id]?.description ?? `Preguntas sobre ${id}`,
       }));
       setCategories(cats);
     };
@@ -75,7 +75,7 @@ export default function QuizPage() {
   };
 
   const question = questions[currentQ];
-  const catMeta = catId ? (CAT_META[catId] ?? { name: catId, icon: '📝', description: '' }) : null;
+  const catMeta = catId ? (DEFAULT_CAT_META[catId] ?? { name: catId, icon: '📝', description: '' }) : null;
 
   const handleSelect = (idx: number) => {
     if (answered) return;
