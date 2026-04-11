@@ -34,7 +34,7 @@ interface Question {
   correct_index: number;
 }
 
-const DEFAULT_CATEGORIES = [
+const CATEGORIES = [
   { id: 'algebra', name: 'Álgebra', icon: '📐' },
   { id: 'geometry', name: 'Geometría', icon: '📏' },
   { id: 'physics', name: 'Física', icon: '⚡' },
@@ -114,17 +114,9 @@ function StudentsTab({ toast }: { toast: any }) {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    // Find the user_id from the profile
-    const profile = profiles.find(p => p.id === deleteId);
-    if (!profile) return;
-    const { data, error } = await supabase.functions.invoke('delete-user', {
-      body: { user_id: profile.user_id },
-    });
-    if (error || data?.error) {
-      toast({ title: 'Error', description: error?.message || data?.error, variant: 'destructive' });
-      return;
-    }
-    toast({ title: 'Eliminado', description: 'Usuario eliminado completamente' });
+    const { error } = await supabase.from('profiles').delete().eq('id', deleteId);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Eliminado', description: 'Perfil eliminado' });
     setDeleteId(null);
     fetch();
   };
@@ -192,30 +184,16 @@ function QuestionsTab({ toast }: { toast: any }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Question | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [allCategories, setAllCategories] = useState<{ id: string; name: string; icon: string }[]>([]);
 
   // Form state
   const [fCategory, setFCategory] = useState('algebra');
-  const [fCustomCategory, setFCustomCategory] = useState('');
-  const [fUseCustom, setFUseCustom] = useState(false);
   const [fQuestion, setFQuestion] = useState('');
   const [fOptions, setFOptions] = useState(['', '', '', '']);
   const [fCorrect, setFCorrect] = useState(0);
 
   const fetchQ = async () => {
     const { data } = await supabase.from('questions').select('*').order('category').order('created_at');
-    const qs = (data as Question[]) ?? [];
-    setQuestions(qs);
-
-    // Build dynamic categories from DB + defaults
-    const dbCats = new Set(qs.map(q => q.category));
-    const merged = [...DEFAULT_CATEGORIES];
-    dbCats.forEach(cat => {
-      if (!merged.find(c => c.id === cat)) {
-        merged.push({ id: cat, name: cat, icon: '📝' });
-      }
-    });
-    setAllCategories(merged);
+    setQuestions((data as Question[]) ?? []);
   };
 
   useEffect(() => { fetchQ(); }, []);
@@ -225,8 +203,6 @@ function QuestionsTab({ toast }: { toast: any }) {
   const openNew = () => {
     setEditing(null);
     setFCategory('algebra');
-    setFCustomCategory('');
-    setFUseCustom(false);
     setFQuestion('');
     setFOptions(['', '', '', '']);
     setFCorrect(0);
@@ -235,16 +211,7 @@ function QuestionsTab({ toast }: { toast: any }) {
 
   const openEdit = (q: Question) => {
     setEditing(q);
-    const isDefault = DEFAULT_CATEGORIES.find(c => c.id === q.category);
-    if (isDefault) {
-      setFCategory(q.category);
-      setFUseCustom(false);
-      setFCustomCategory('');
-    } else {
-      setFCategory('');
-      setFUseCustom(true);
-      setFCustomCategory(q.category);
-    }
+    setFCategory(q.category);
     setFQuestion(q.question);
     setFOptions([...q.options]);
     setFCorrect(q.correct_index);
@@ -252,20 +219,19 @@ function QuestionsTab({ toast }: { toast: any }) {
   };
 
   const save = async () => {
-    const finalCategory = fUseCustom ? fCustomCategory.trim().toLowerCase().replace(/\s+/g, '_') : fCategory;
-    if (!finalCategory || !fQuestion.trim() || fOptions.some(o => !o.trim())) {
+    if (!fQuestion.trim() || fOptions.some(o => !o.trim())) {
       toast({ title: 'Error', description: 'Completa todos los campos', variant: 'destructive' });
       return;
     }
     if (editing) {
       const { error } = await supabase.from('questions').update({
-        category: finalCategory, question: fQuestion, options: fOptions, correct_index: fCorrect,
+        category: fCategory, question: fQuestion, options: fOptions, correct_index: fCorrect,
       }).eq('id', editing.id);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
       toast({ title: 'Actualizada', description: 'Pregunta actualizada' });
     } else {
       const { error } = await supabase.from('questions').insert({
-        category: finalCategory, question: fQuestion, options: fOptions, correct_index: fCorrect, created_by: user?.id,
+        category: fCategory, question: fQuestion, options: fOptions, correct_index: fCorrect, created_by: user?.id,
       });
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
       toast({ title: 'Creada', description: 'Pregunta agregada' });
@@ -283,7 +249,7 @@ function QuestionsTab({ toast }: { toast: any }) {
     fetchQ();
   };
 
-  const catName = (id: string) => allCategories.find(c => c.id === id)?.name ?? id;
+  const catName = (id: string) => CATEGORIES.find(c => c.id === id)?.name ?? id;
 
   return (
     <div className="space-y-4 mt-4">
@@ -292,7 +258,7 @@ function QuestionsTab({ toast }: { toast: any }) {
           <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas las categorías</SelectItem>
-            {allCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>)}
+            {CATEGORIES.map(c => <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Button onClick={openNew} className="gradient-primary text-primary-foreground gap-2"><Plus className="w-4 h-4" /> Nueva pregunta</Button>
@@ -323,26 +289,10 @@ function QuestionsTab({ toast }: { toast: any }) {
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
             <div className="space-y-2">
               <Label>Categoría</Label>
-              <div className="flex items-center gap-2 mb-2">
-                <Button type="button" variant={!fUseCustom ? 'default' : 'outline'} size="sm" onClick={() => setFUseCustom(false)}>
-                  Existente
-                </Button>
-                <Button type="button" variant={fUseCustom ? 'default' : 'outline'} size="sm" onClick={() => setFUseCustom(true)}>
-                  Personalizada
-                </Button>
-              </div>
-              {fUseCustom ? (
-                <Input
-                  value={fCustomCategory}
-                  onChange={e => setFCustomCategory(e.target.value)}
-                  placeholder="Nombre de la nueva temática (ej: Historia, Economía)"
-                />
-              ) : (
-                <Select value={fCategory} onValueChange={setFCategory}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{allCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>)}</SelectContent>
-                </Select>
-              )}
+              <Select value={fCategory} onValueChange={setFCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{CATEGORIES.map(c => <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Pregunta</Label>

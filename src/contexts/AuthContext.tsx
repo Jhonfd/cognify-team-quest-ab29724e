@@ -31,55 +31,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserRole((data?.role as AppRole) ?? null);
   };
 
-  const ensureUserRecords = async (authUser: User) => {
-    const name = typeof authUser.user_metadata?.name === 'string' ? authUser.user_metadata.name.trim() : '';
-    const role = authUser.user_metadata?.role === 'admin' ? 'admin' : 'student';
-    const email = authUser.email ?? '';
-
-    const [{ data: profile }, { data: roleRow }] = await Promise.all([
-      supabase.from('profiles').select('id, name, email').eq('user_id', authUser.id).maybeSingle(),
-      supabase.from('user_roles').select('id').eq('user_id', authUser.id).maybeSingle(),
-    ]);
-
-    if (!profile) {
-      await supabase.from('profiles').insert({
-        user_id: authUser.id,
-        name,
-        email,
-      });
-    } else if ((!profile.name && name) || (email && profile.email !== email)) {
-      await supabase
-        .from('profiles')
-        .update({
-          name: profile.name || name,
-          email,
-        })
-        .eq('id', profile.id);
-    }
-
-    if (!roleRow) {
-      await supabase.from('user_roles').insert({
-        user_id: authUser.id,
-        role,
-      });
-    }
-  };
-
-  const syncUserState = async (authUser: User) => {
-    try {
-      await ensureUserRecords(authUser);
-      await fetchRole(authUser.id);
-    } catch (error) {
-      console.error('Error syncing user records:', error);
-    }
-  };
-
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        setTimeout(() => void syncUserState(session.user), 0);
+        setTimeout(() => fetchRole(session.user.id), 0);
       } else {
         setUserRole(null);
       }
@@ -90,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        void syncUserState(session.user);
+        fetchRole(session.user.id);
       }
       setLoading(false);
     });
@@ -106,8 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) throw error;
 
-    if (data.session?.user) {
-      await syncUserState(data.session.user);
+    // Insert role after signup
+    if (data.user) {
+      const { error: roleError } = await supabase.from('user_roles').insert({
+        user_id: data.user.id,
+        role,
+      });
+      if (roleError) console.error('Error assigning role:', roleError);
+      setUserRole(role);
     }
   };
 
