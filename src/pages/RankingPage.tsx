@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, Medal, ChevronDown, ChevronUp } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Trophy, Medal, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface QuizDetail {
   subject: string;
@@ -17,8 +24,11 @@ interface RankingEntry {
 }
 
 export default function RankingPage() {
+  const { userRole } = useAuth();
+  const { toast } = useToast();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
 
   const fetchRanking = async () => {
     const { data: results } = await supabase.from('quiz_results').select('user_id, score, total_questions, subject, completed_at');
@@ -61,6 +71,15 @@ export default function RankingPage() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  const handleDeleteUser = async () => {
+    if (!deleteUserId) return;
+    const { error } = await supabase.from('quiz_results').delete().eq('user_id', deleteUserId);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Eliminado', description: 'Resultados del usuario eliminados del ranking' });
+    setDeleteUserId(null);
+    fetchRanking();
+  };
+
   const getMedal = (idx: number) => {
     if (idx === 0) return <Trophy className="w-5 h-5 text-warning" />;
     if (idx === 1) return <Medal className="w-5 h-5 text-muted-foreground" />;
@@ -80,11 +99,12 @@ export default function RankingPage() {
       </div>
 
       <div className="glass-card overflow-hidden">
-        <div className="grid grid-cols-[60px_1fr_100px_40px] gap-4 p-4 border-b border-border text-sm font-medium text-muted-foreground">
+        <div className={`grid ${userRole === 'admin' ? 'grid-cols-[60px_1fr_100px_40px_40px]' : 'grid-cols-[60px_1fr_100px_40px]'} gap-4 p-4 border-b border-border text-sm font-medium text-muted-foreground`}>
           <span>#</span>
           <span>Nombre</span>
           <span className="text-right">Puntaje</span>
           <span></span>
+          {userRole === 'admin' && <span></span>}
         </div>
         {ranking.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">No hay resultados aún</div>
@@ -92,15 +112,19 @@ export default function RankingPage() {
           ranking.map((entry, idx) => (
             <div key={entry.user_id}>
               <div
-                onClick={() => toggleExpand(entry.user_id)}
-                className={`grid grid-cols-[60px_1fr_100px_40px] gap-4 p-4 items-center transition-colors hover:bg-secondary/50 cursor-pointer ${idx === 0 ? 'bg-primary/5' : ''}`}
+                className={`grid ${userRole === 'admin' ? 'grid-cols-[60px_1fr_100px_40px_40px]' : 'grid-cols-[60px_1fr_100px_40px]'} gap-4 p-4 items-center transition-colors hover:bg-secondary/50 ${idx === 0 ? 'bg-primary/5' : ''}`}
               >
                 <div className="flex items-center justify-center">{getMedal(idx)}</div>
-                <span className="font-medium text-foreground">{entry.name}</span>
+                <span className="font-medium text-foreground cursor-pointer" onClick={() => toggleExpand(entry.user_id)}>{entry.name}</span>
                 <span className="text-right font-bold text-primary">{entry.total_score}</span>
-                <div className="flex items-center justify-center text-muted-foreground">
+                <div className="flex items-center justify-center text-muted-foreground cursor-pointer" onClick={() => toggleExpand(entry.user_id)}>
                   {expandedUser === entry.user_id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </div>
+                {userRole === 'admin' && (
+                  <Button variant="ghost" size="icon" onClick={() => setDeleteUserId(entry.user_id)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                )}
               </div>
 
               {expandedUser === entry.user_id && (
@@ -130,6 +154,20 @@ export default function RankingPage() {
           ))
         )}
       </div>
+
+      {/* Delete Confirm */}
+      <AlertDialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar del ranking?</AlertDialogTitle>
+            <AlertDialogDescription>Se eliminarán todos los resultados de quizzes de este usuario del ranking. Esta acción no se puede deshacer.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground">Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
