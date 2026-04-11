@@ -114,17 +114,16 @@ function StudentsTab({ toast }: { toast: any }) {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    // Find the profile to get user_id
     const profile = profiles.find(p => p.id === deleteId);
-    if (profile) {
-      // Delete quiz results first
-      await supabase.from('quiz_results').delete().eq('user_id', profile.user_id);
-      // Delete user role
-      await supabase.from('user_roles').delete().eq('user_id', profile.user_id);
+    if (!profile) return;
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: { user_id: profile.user_id },
+    });
+    if (error || data?.error) {
+      toast({ title: 'Error', description: error?.message || data?.error, variant: 'destructive' });
+      return;
     }
-    const { error } = await supabase.from('profiles').delete().eq('id', deleteId);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
-    toast({ title: 'Eliminado', description: 'Perfil y todos sus datos eliminados' });
+    toast({ title: 'Eliminado', description: 'Usuario eliminado completamente del sistema' });
     setDeleteId(null);
     fetch();
   };
