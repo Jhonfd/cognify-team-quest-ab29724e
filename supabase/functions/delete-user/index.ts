@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
     const { user_id, email, cleanup_orphans, preserve_email } = parsed.data;
 
-    const deleteUserData = async (targetUserId: string) => {
+    const deletePublicData = async (targetUserId: string) => {
       const [quizResultsResponse, rolesResponse, profilesResponse] = await Promise.all([
         supabaseAdmin.from("quiz_results").delete().eq("user_id", targetUserId),
         supabaseAdmin.from("user_roles").delete().eq("user_id", targetUserId),
@@ -81,11 +81,26 @@ Deno.serve(async (req) => {
       if (deleteErrors.length > 0) {
         throw new Error(deleteErrors.map((err) => err?.message).join(" | "));
       }
+    };
 
+    const deleteAuthUser = async (targetUserId: string) => {
       const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(targetUserId, false);
-      if (authDeleteError) {
-        throw new Error(authDeleteError.message);
+
+      if (!authDeleteError) {
+        return;
       }
+
+      const message = authDeleteError.message.toLowerCase();
+      if (message.includes("not found") || message.includes("user not found")) {
+        return;
+      }
+
+      throw new Error(authDeleteError.message);
+    };
+
+    const deleteUserData = async (targetUserId: string) => {
+      await deleteAuthUser(targetUserId);
+      await deletePublicData(targetUserId);
     };
 
     if (cleanup_orphans) {

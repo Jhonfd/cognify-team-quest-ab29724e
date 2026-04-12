@@ -63,13 +63,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) throw error;
 
-    // Insert role after signup
     if (data.user) {
+      const { error: profileError } = await supabase.from('profiles').upsert({
+        user_id: data.user.id,
+        name,
+        email,
+      }, {
+        onConflict: 'user_id',
+      });
+
+      if (profileError) {
+        throw profileError;
+      }
+
       const { error: roleError } = await supabase.from('user_roles').insert({
         user_id: data.user.id,
         role,
       });
-      if (roleError) console.error('Error assigning role:', roleError);
+      if (roleError) throw roleError;
+
       setUserRole(role);
     }
   };
