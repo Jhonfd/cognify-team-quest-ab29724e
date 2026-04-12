@@ -28,7 +28,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('role')
       .eq('user_id', userId)
       .maybeSingle();
-    setUserRole((data?.role as AppRole) ?? null);
+    
+    if (!data) {
+      // Role not yet created — check user metadata and create it
+      const { data: { user } } = await supabase.auth.getUser();
+      const metaRole = (user?.user_metadata?.role as AppRole) || 'student';
+      await supabase.from('user_roles').insert({ user_id: userId, role: metaRole });
+      setUserRole(metaRole);
+    } else {
+      setUserRole(data.role as AppRole);
+    }
   };
 
   useEffect(() => {

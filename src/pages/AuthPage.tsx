@@ -31,7 +31,8 @@ export default function AuthPage() {
           return;
         }
         await signUp(email, password, name, role);
-        toast({ title: '¡Cuenta creada!', description: 'Revisa tu correo para confirmar tu cuenta.' });
+        toast({ title: '¡Cuenta creada!', description: 'Revisa tu correo electrónico y confirma tu cuenta antes de iniciar sesión.' });
+        setIsLogin(true);
       }
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
