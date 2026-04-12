@@ -63,27 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) throw error;
 
-    if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').upsert({
-        user_id: data.user.id,
-        name,
-        email,
-      }, {
-        onConflict: 'user_id',
-      });
-
-      if (profileError) {
-        throw profileError;
-      }
-
-      const { error: roleError } = await supabase.from('user_roles').insert({
-        user_id: data.user.id,
-        role,
-      });
-      if (roleError) throw roleError;
-
-      setUserRole(role);
-    }
+    // Sign out immediately so the user must confirm their email first
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setUserRole(null);
   };
 
   const signIn = async (email: string, password: string) => {
