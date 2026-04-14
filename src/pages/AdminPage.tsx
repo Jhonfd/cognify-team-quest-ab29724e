@@ -193,20 +193,27 @@ function StudentsTab({ toast }: { toast: any }) {
 function QuestionsTab({ toast }: { toast: any }) {
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [dbCategories, setDbCategories] = useState<{ slug: string; name: string; icon: string }[]>([]);
   const [filterCat, setFilterCat] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Question | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Form state
-  const [fCategory, setFCategory] = useState('algebra');
+  const [fCategory, setFCategory] = useState('');
   const [fQuestion, setFQuestion] = useState('');
   const [fOptions, setFOptions] = useState(['', '', '', '']);
   const [fCorrect, setFCorrect] = useState(0);
 
   const fetchQ = async () => {
-    const { data } = await supabase.from('questions').select('*').order('category').order('created_at');
-    setQuestions((data as Question[]) ?? []);
+    const [{ data: qData }, { data: catData }] = await Promise.all([
+      supabase.from('questions').select('*').order('category').order('created_at'),
+      supabase.from('categories').select('slug, name, icon').order('name'),
+    ]);
+    setQuestions((qData as Question[]) ?? []);
+    const cats = (catData ?? []) as { slug: string; name: string; icon: string }[];
+    setDbCategories(cats);
+    if (cats.length > 0 && !fCategory) setFCategory(cats[0].slug);
   };
 
   useEffect(() => { fetchQ(); }, []);
@@ -262,7 +269,7 @@ function QuestionsTab({ toast }: { toast: any }) {
     fetchQ();
   };
 
-  const catName = (id: string) => CATEGORIES.find(c => c.id === id)?.name ?? id;
+  const catName = (id: string) => dbCategories.find(c => c.slug === id)?.name ?? id;
 
   return (
     <div className="space-y-4 mt-4">
@@ -271,7 +278,7 @@ function QuestionsTab({ toast }: { toast: any }) {
           <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas las categorías</SelectItem>
-            {CATEGORIES.map(c => <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>)}
+            {dbCategories.map(c => <SelectItem key={c.slug} value={c.slug}>{c.icon} {c.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Button onClick={openNew} className="gradient-primary text-primary-foreground gap-2"><Plus className="w-4 h-4" /> Nueva pregunta</Button>
@@ -304,7 +311,7 @@ function QuestionsTab({ toast }: { toast: any }) {
               <Label>Categoría</Label>
               <Select value={fCategory} onValueChange={setFCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{CATEGORIES.map(c => <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{dbCategories.map(c => <SelectItem key={c.slug} value={c.slug}>{c.icon} {c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
