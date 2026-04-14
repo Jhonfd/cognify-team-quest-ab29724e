@@ -14,7 +14,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Users, BookOpen, Shield, Plus, Pencil, Trash2, UserCog } from 'lucide-react';
+import { Users, BookOpen, Shield, Plus, Pencil, Trash2, UserCog, FolderOpen, Sparkles } from 'lucide-react';
+import CategoriesTab from '@/components/admin/CategoriesTab';
+import CustomQuizzesTab from '@/components/admin/CustomQuizzesTab';
 
 type AppRole = 'admin' | 'student';
 
@@ -65,13 +67,17 @@ export default function AdminPage() {
         <p className="text-muted-foreground">Gestiona estudiantes, preguntas y roles</p>
       </div>
       <Tabs defaultValue="students" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="students" className="gap-2"><Users className="w-4 h-4" /> Estudiantes</TabsTrigger>
           <TabsTrigger value="questions" className="gap-2"><BookOpen className="w-4 h-4" /> Preguntas</TabsTrigger>
+          <TabsTrigger value="categories" className="gap-2"><FolderOpen className="w-4 h-4" /> Categorías</TabsTrigger>
+          <TabsTrigger value="quizzes" className="gap-2"><Sparkles className="w-4 h-4" /> Quices</TabsTrigger>
           <TabsTrigger value="roles" className="gap-2"><UserCog className="w-4 h-4" /> Roles</TabsTrigger>
         </TabsList>
         <TabsContent value="students"><StudentsTab toast={toast} /></TabsContent>
         <TabsContent value="questions"><QuestionsTab toast={toast} /></TabsContent>
+        <TabsContent value="categories"><CategoriesTab toast={toast} /></TabsContent>
+        <TabsContent value="quizzes"><CustomQuizzesTab toast={toast} /></TabsContent>
         <TabsContent value="roles"><RolesTab toast={toast} /></TabsContent>
       </Tabs>
     </div>
