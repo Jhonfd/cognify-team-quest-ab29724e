@@ -14,7 +14,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Users, BookOpen, Shield, Plus, Pencil, Trash2, UserCog } from 'lucide-react';
+import { Users, BookOpen, Shield, Plus, Pencil, Trash2, UserCog, FolderOpen, Sparkles } from 'lucide-react';
+import CategoriesTab from '@/components/admin/CategoriesTab';
+import CustomQuizzesTab from '@/components/admin/CustomQuizzesTab';
 
 type AppRole = 'admin' | 'student';
 
@@ -34,15 +36,6 @@ interface Question {
   correct_index: number;
 }
 
-const CATEGORIES = [
-  { id: 'algebra', name: 'Álgebra', icon: '📐' },
-  { id: 'geometry', name: 'Geometría', icon: '📏' },
-  { id: 'physics', name: 'Física', icon: '⚡' },
-  { id: 'chemistry', name: 'Química', icon: '🧪' },
-  { id: 'biology', name: 'Biología', icon: '🧬' },
-  { id: 'astronomy', name: 'Astronomía', icon: '🌌' },
-  { id: 'computing', name: 'Sistemas & Computación', icon: '💻' },
-];
 
 export default function AdminPage() {
   const { userRole } = useAuth();
@@ -65,13 +58,17 @@ export default function AdminPage() {
         <p className="text-muted-foreground">Gestiona estudiantes, preguntas y roles</p>
       </div>
       <Tabs defaultValue="students" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="students" className="gap-2"><Users className="w-4 h-4" /> Estudiantes</TabsTrigger>
           <TabsTrigger value="questions" className="gap-2"><BookOpen className="w-4 h-4" /> Preguntas</TabsTrigger>
+          <TabsTrigger value="categories" className="gap-2"><FolderOpen className="w-4 h-4" /> Categorías</TabsTrigger>
+          <TabsTrigger value="quizzes" className="gap-2"><Sparkles className="w-4 h-4" /> Quices</TabsTrigger>
           <TabsTrigger value="roles" className="gap-2"><UserCog className="w-4 h-4" /> Roles</TabsTrigger>
         </TabsList>
         <TabsContent value="students"><StudentsTab toast={toast} /></TabsContent>
         <TabsContent value="questions"><QuestionsTab toast={toast} /></TabsContent>
+        <TabsContent value="categories"><CategoriesTab toast={toast} /></TabsContent>
+        <TabsContent value="quizzes"><CustomQuizzesTab toast={toast} /></TabsContent>
         <TabsContent value="roles"><RolesTab toast={toast} /></TabsContent>
       </Tabs>
     </div>
@@ -187,20 +184,27 @@ function StudentsTab({ toast }: { toast: any }) {
 function QuestionsTab({ toast }: { toast: any }) {
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [dbCategories, setDbCategories] = useState<{ slug: string; name: string; icon: string }[]>([]);
   const [filterCat, setFilterCat] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Question | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Form state
-  const [fCategory, setFCategory] = useState('algebra');
+  const [fCategory, setFCategory] = useState('');
   const [fQuestion, setFQuestion] = useState('');
   const [fOptions, setFOptions] = useState(['', '', '', '']);
   const [fCorrect, setFCorrect] = useState(0);
 
   const fetchQ = async () => {
-    const { data } = await supabase.from('questions').select('*').order('category').order('created_at');
-    setQuestions((data as Question[]) ?? []);
+    const [{ data: qData }, { data: catData }] = await Promise.all([
+      supabase.from('questions').select('*').order('category').order('created_at'),
+      supabase.from('categories').select('slug, name, icon').order('name'),
+    ]);
+    setQuestions((qData as Question[]) ?? []);
+    const cats = (catData ?? []) as { slug: string; name: string; icon: string }[];
+    setDbCategories(cats);
+    if (cats.length > 0 && !fCategory) setFCategory(cats[0].slug);
   };
 
   useEffect(() => { fetchQ(); }, []);
@@ -256,7 +260,7 @@ function QuestionsTab({ toast }: { toast: any }) {
     fetchQ();
   };
 
-  const catName = (id: string) => CATEGORIES.find(c => c.id === id)?.name ?? id;
+  const catName = (id: string) => dbCategories.find(c => c.slug === id)?.name ?? id;
 
   return (
     <div className="space-y-4 mt-4">
@@ -265,7 +269,7 @@ function QuestionsTab({ toast }: { toast: any }) {
           <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas las categorías</SelectItem>
-            {CATEGORIES.map(c => <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>)}
+            {dbCategories.map(c => <SelectItem key={c.slug} value={c.slug}>{c.icon} {c.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Button onClick={openNew} className="gradient-primary text-primary-foreground gap-2"><Plus className="w-4 h-4" /> Nueva pregunta</Button>
@@ -298,7 +302,7 @@ function QuestionsTab({ toast }: { toast: any }) {
               <Label>Categoría</Label>
               <Select value={fCategory} onValueChange={setFCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{CATEGORIES.map(c => <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{dbCategories.map(c => <SelectItem key={c.slug} value={c.slug}>{c.icon} {c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
