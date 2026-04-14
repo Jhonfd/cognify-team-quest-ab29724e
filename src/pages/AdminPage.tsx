@@ -36,15 +36,6 @@ interface Question {
   correct_index: number;
 }
 
-const CATEGORIES = [
-  { id: 'algebra', name: 'Álgebra', icon: '📐' },
-  { id: 'geometry', name: 'Geometría', icon: '📏' },
-  { id: 'physics', name: 'Física', icon: '⚡' },
-  { id: 'chemistry', name: 'Química', icon: '🧪' },
-  { id: 'biology', name: 'Biología', icon: '🧬' },
-  { id: 'astronomy', name: 'Astronomía', icon: '🌌' },
-  { id: 'computing', name: 'Sistemas & Computación', icon: '💻' },
-];
 
 export default function AdminPage() {
   const { userRole } = useAuth();
