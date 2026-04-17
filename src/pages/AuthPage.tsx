@@ -8,7 +8,11 @@ import { useToast } from '@/hooks/use-toast';
 
 type AppRole = 'admin' | 'student';
 
-export default function AuthPage() {
+interface AuthPageProps {
+  onBack?: () => void;
+}
+
+export default function AuthPage({ onBack }: AuthPageProps = {}) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
