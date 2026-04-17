@@ -3,12 +3,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Brain, Shield, GraduationCap } from 'lucide-react';
+import { Brain, Shield, GraduationCap, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type AppRole = 'admin' | 'student';
 
-export default function AuthPage() {
+interface AuthPageProps {
+  onBack?: () => void;
+}
+
+export default function AuthPage({ onBack }: AuthPageProps = {}) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,7 +47,17 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md glass-card p-8 space-y-6">
+      <div className="w-full max-w-md glass-card p-8 space-y-6 relative">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="absolute top-4 left-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Volver
+          </button>
+        )}
         <div className="flex flex-col items-center gap-2">
           <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
             <Brain className="w-7 h-7 text-primary-foreground" />
