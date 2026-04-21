@@ -52,16 +52,6 @@ export default function GroupsPage() {
   const [allStudents, setAllStudents] = useState<ProfileLite[]>([]);
   const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set());
 
-  if (userRole !== 'teacher' && userRole !== 'admin') {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Shield className="w-16 h-16 text-muted-foreground" />
-        <h2 className="text-xl font-bold text-foreground">Acceso restringido</h2>
-        <p className="text-muted-foreground">Solo profesores y administradores pueden gestionar grupos.</p>
-      </div>
-    );
-  }
-
   const fetchData = async () => {
     const [{ data: groupsData }, { data: profs }, { data: gm }] = await Promise.all([
       supabase.from('groups').select('*').order('created_at', { ascending: false }),
@@ -95,6 +85,16 @@ export default function GroupsPage() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  if (userRole !== 'teacher' && userRole !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <Shield className="w-16 h-16 text-muted-foreground" />
+        <h2 className="text-xl font-bold text-foreground">Acceso restringido</h2>
+        <p className="text-muted-foreground">Solo profesores y administradores pueden gestionar grupos.</p>
+      </div>
+    );
+  }
 
   const fetchMembers = async (groupId: string) => {
     const { data } = await supabase.from('group_members').select('*').eq('group_id', groupId).order('joined_at');
