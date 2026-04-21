@@ -3,10 +3,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Brain, Shield, GraduationCap, ArrowLeft } from 'lucide-react';
+import { Brain, Shield, GraduationCap, ArrowLeft, Briefcase } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-type AppRole = 'admin' | 'student';
+type AppRole = 'admin' | 'teacher' | 'student';
 
 interface AuthPageProps {
   onBack?: () => void;
@@ -45,6 +45,12 @@ export default function AuthPage({ onBack }: AuthPageProps = {}) {
     }
   };
 
+  const roleOptions: { value: AppRole; label: string; description: string; Icon: any }[] = [
+    { value: 'student', label: 'Estudiante', description: 'Quizzes y ranking', Icon: GraduationCap },
+    { value: 'teacher', label: 'Profesor', description: 'Crea grupos y quices', Icon: Briefcase },
+    { value: 'admin', label: 'Admin', description: 'Todos los permisos', Icon: Shield },
+  ];
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md glass-card p-8 space-y-6 relative">
@@ -78,33 +84,23 @@ export default function AuthPage({ onBack }: AuthPageProps = {}) {
 
               <div className="space-y-2">
                 <Label>Rol</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setRole('student')}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                      role === 'student'
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground/50'
-                    }`}
-                  >
-                    <GraduationCap className="w-6 h-6" />
-                    <span className="text-sm font-medium">Estudiante</span>
-                    <span className="text-xs opacity-70">Acceso a quizzes y ranking</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('admin')}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                      role === 'admin'
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground/50'
-                    }`}
-                  >
-                    <Shield className="w-6 h-6" />
-                    <span className="text-sm font-medium">Administrador</span>
-                    <span className="text-xs opacity-70">Todos los permisos</span>
-                  </button>
+                <div className="grid grid-cols-3 gap-2">
+                  {roleOptions.map(({ value, label, description, Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setRole(value)}
+                      className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all text-center ${
+                        role === value
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground/50'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="text-xs font-medium">{label}</span>
+                      <span className="text-[10px] opacity-70 leading-tight">{description}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </>
