@@ -18,7 +18,7 @@ import { Users, BookOpen, Shield, Plus, Pencil, Trash2, UserCog, FolderOpen, Spa
 import CategoriesTab from '@/components/admin/CategoriesTab';
 import CustomQuizzesTab from '@/components/admin/CustomQuizzesTab';
 
-type AppRole = 'admin' | 'student';
+type AppRole = 'admin' | 'teacher' | 'student';
 
 interface Profile {
   id: string;
@@ -41,35 +41,42 @@ export default function AdminPage() {
   const { userRole } = useAuth();
   const { toast } = useToast();
 
-  if (userRole !== 'admin') {
+  const isAdmin = userRole === 'admin';
+  const isTeacher = userRole === 'teacher';
+
+  if (!isAdmin && !isTeacher) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Shield className="w-16 h-16 text-muted-foreground" />
         <h2 className="text-xl font-bold text-foreground">Acceso restringido</h2>
-        <p className="text-muted-foreground">Solo los administradores pueden acceder a esta sección.</p>
+        <p className="text-muted-foreground">Solo administradores y profesores pueden acceder a esta sección.</p>
       </div>
     );
   }
 
+  const defaultTab = isAdmin ? 'students' : 'questions';
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Panel de Administración</h1>
-        <p className="text-muted-foreground">Gestiona estudiantes, preguntas y roles</p>
+        <h1 className="text-2xl font-bold text-foreground">Panel de {isAdmin ? 'Administración' : 'Profesor'}</h1>
+        <p className="text-muted-foreground">
+          {isAdmin ? 'Gestiona estudiantes, preguntas y roles' : 'Gestiona preguntas, categorías y quices'}
+        </p>
       </div>
-      <Tabs defaultValue="students" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="students" className="gap-2"><Users className="w-4 h-4" /> Estudiantes</TabsTrigger>
+      <Tabs defaultValue={defaultTab} className="w-full">
+        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-3'}`}>
+          {isAdmin && <TabsTrigger value="students" className="gap-2"><Users className="w-4 h-4" /> Estudiantes</TabsTrigger>}
           <TabsTrigger value="questions" className="gap-2"><BookOpen className="w-4 h-4" /> Preguntas</TabsTrigger>
           <TabsTrigger value="categories" className="gap-2"><FolderOpen className="w-4 h-4" /> Categorías</TabsTrigger>
           <TabsTrigger value="quizzes" className="gap-2"><Sparkles className="w-4 h-4" /> Quices</TabsTrigger>
-          <TabsTrigger value="roles" className="gap-2"><UserCog className="w-4 h-4" /> Roles</TabsTrigger>
+          {isAdmin && <TabsTrigger value="roles" className="gap-2"><UserCog className="w-4 h-4" /> Roles</TabsTrigger>}
         </TabsList>
-        <TabsContent value="students"><StudentsTab toast={toast} /></TabsContent>
+        {isAdmin && <TabsContent value="students"><StudentsTab toast={toast} /></TabsContent>}
         <TabsContent value="questions"><QuestionsTab toast={toast} /></TabsContent>
         <TabsContent value="categories"><CategoriesTab toast={toast} /></TabsContent>
         <TabsContent value="quizzes"><CustomQuizzesTab toast={toast} /></TabsContent>
-        <TabsContent value="roles"><RolesTab toast={toast} /></TabsContent>
+        {isAdmin && <TabsContent value="roles"><RolesTab toast={toast} /></TabsContent>}
       </Tabs>
     </div>
   );
@@ -137,8 +144,8 @@ function StudentsTab({ toast }: { toast: any }) {
           <div key={p.id} className="grid grid-cols-[1fr_1fr_100px_80px] gap-4 p-4 items-center border-b border-border/30 last:border-0">
             <span className="text-foreground font-medium truncate">{p.name || 'Sin nombre'}</span>
             <span className="text-muted-foreground truncate">{p.email}</span>
-            <span className={`text-xs font-medium px-2 py-1 rounded-full text-center ${p.role === 'admin' ? 'bg-primary/20 text-primary' : 'bg-secondary text-secondary-foreground'}`}>
-              {p.role === 'admin' ? 'Admin' : 'Estudiante'}
+            <span className={`text-xs font-medium px-2 py-1 rounded-full text-center ${p.role === 'admin' ? 'bg-primary/20 text-primary' : p.role === 'teacher' ? 'bg-warning/20 text-warning' : 'bg-secondary text-secondary-foreground'}`}>
+              {p.role === 'admin' ? 'Admin' : p.role === 'teacher' ? 'Profesor' : 'Estudiante'}
             </span>
             <div className="flex gap-1">
               <Button variant="ghost" size="icon" onClick={() => handleEdit(p)}><Pencil className="w-4 h-4" /></Button>
@@ -394,7 +401,7 @@ function RolesTab({ toast }: { toast: any }) {
       ({ error } = await supabase.from('user_roles').insert({ user_id: changingUser.user_id, role: newRole }));
     }
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
-    toast({ title: 'Rol actualizado', description: `${changingUser.name} ahora es ${newRole === 'admin' ? 'Administrador' : 'Estudiante'}` });
+    toast({ title: 'Rol actualizado', description: `${changingUser.name} ahora es ${newRole === 'admin' ? 'Administrador' : newRole === 'teacher' ? 'Profesor' : 'Estudiante'}` });
     setChangingUser(null);
     fetch();
   };
@@ -411,8 +418,8 @@ function RolesTab({ toast }: { toast: any }) {
           <div key={p.id} className="grid grid-cols-[1fr_1fr_100px_80px] gap-4 p-4 items-center border-b border-border/30 last:border-0">
             <span className="text-foreground font-medium truncate">{p.name || 'Sin nombre'}</span>
             <span className="text-muted-foreground truncate">{p.email}</span>
-            <span className={`text-xs font-medium px-2 py-1 rounded-full text-center ${p.role === 'admin' ? 'bg-primary/20 text-primary' : 'bg-secondary text-secondary-foreground'}`}>
-              {p.role === 'admin' ? 'Admin' : 'Estudiante'}
+            <span className={`text-xs font-medium px-2 py-1 rounded-full text-center ${p.role === 'admin' ? 'bg-primary/20 text-primary' : p.role === 'teacher' ? 'bg-warning/20 text-warning' : 'bg-secondary text-secondary-foreground'}`}>
+              {p.role === 'admin' ? 'Admin' : p.role === 'teacher' ? 'Profesor' : 'Estudiante'}
             </span>
             <Button variant="ghost" size="icon" onClick={() => openChange(p)}><Shield className="w-4 h-4" /></Button>
           </div>
@@ -424,26 +431,36 @@ function RolesTab({ toast }: { toast: any }) {
         <DialogContent>
           <DialogHeader><DialogTitle>Cambiar rol de {changingUser?.name}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setNewRole('student')}
-                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${
                   newRole === 'student' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-secondary/30 text-muted-foreground'
                 }`}
               >
-                <Users className="w-6 h-6" />
-                <span className="text-sm font-medium">Estudiante</span>
+                <Users className="w-5 h-5" />
+                <span className="text-xs font-medium">Estudiante</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewRole('teacher')}
+                className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${
+                  newRole === 'teacher' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-secondary/30 text-muted-foreground'
+                }`}
+              >
+                <UserCog className="w-5 h-5" />
+                <span className="text-xs font-medium">Profesor</span>
               </button>
               <button
                 type="button"
                 onClick={() => setNewRole('admin')}
-                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${
                   newRole === 'admin' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-secondary/30 text-muted-foreground'
                 }`}
               >
-                <Shield className="w-6 h-6" />
-                <span className="text-sm font-medium">Administrador</span>
+                <Shield className="w-5 h-5" />
+                <span className="text-xs font-medium">Admin</span>
               </button>
             </div>
           </div>

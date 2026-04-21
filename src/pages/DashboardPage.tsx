@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Trophy, Target, Award, TrendingUp } from 'lucide-react';
+import JoinGroupCard from '@/components/JoinGroupCard';
 
 interface Stats {
   avgScore: number;
@@ -52,6 +53,7 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground">Métricas del equipo en tiempo real</p>
       </div>
+      <JoinGroupCard />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map(card => (
           <div key={card.label} className="glass-card p-6 space-y-3 glow-primary">
