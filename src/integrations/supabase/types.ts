@@ -210,33 +210,87 @@ export type Database = {
       questions: {
         Row: {
           category: string
+          correct_answers: string[]
           correct_index: number
+          correct_indices: number[]
           created_at: string
           created_by: string | null
           id: string
           options: string[]
           question: string
+          question_type: string
           updated_at: string
         }
         Insert: {
           category: string
+          correct_answers?: string[]
           correct_index: number
+          correct_indices?: number[]
           created_at?: string
           created_by?: string | null
           id?: string
           options: string[]
           question: string
+          question_type?: string
           updated_at?: string
         }
         Update: {
           category?: string
+          correct_answers?: string[]
           correct_index?: number
+          correct_indices?: number[]
           created_at?: string
           created_by?: string | null
           id?: string
           options?: string[]
           question?: string
+          question_type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      quiz_answers: {
+        Row: {
+          created_at: string
+          id: string
+          is_correct: boolean | null
+          needs_review: boolean
+          open_answer: string | null
+          partial_score: number | null
+          question_id: string
+          quiz_result_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          selected_indices: number[]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_correct?: boolean | null
+          needs_review?: boolean
+          open_answer?: string | null
+          partial_score?: number | null
+          question_id: string
+          quiz_result_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selected_indices?: number[]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_correct?: boolean | null
+          needs_review?: boolean
+          open_answer?: string | null
+          partial_score?: number | null
+          question_id?: string
+          quiz_result_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selected_indices?: number[]
+          user_id?: string
         }
         Relationships: []
       }

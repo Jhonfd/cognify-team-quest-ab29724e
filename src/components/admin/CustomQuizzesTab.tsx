@@ -15,10 +15,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Pencil, Trash2, Eye, EyeOff, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, EyeOff, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import QuestionEditor, { EditableQuestion, emptyQuestion, validateQuestion, TYPE_LABELS } from '@/components/QuestionEditor';
 
 interface Category { id: string; slug: string; name: string; icon: string; }
-interface Question { id: string; category: string; question: string; options?: string[]; correct_index?: number; }
+interface Question { id: string; category: string; question: string; question_type?: string; options?: string[]; correct_index?: number; }
 interface CustomQuiz {
   id: string;
   title: string;
@@ -29,11 +30,8 @@ interface CustomQuiz {
   question_ids: string[];
 }
 
-interface DraftQuestion {
+interface DraftQuestion extends EditableQuestion {
   tempId: string;
-  question: string;
-  options: string[];
-  correct_index: number;
 }
 
 const STEPS = ['Información', 'Preguntas', 'Revisión'] as const;
@@ -119,12 +117,7 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
 
   /* ---------- Drafts ---------- */
   const addDraft = () => {
-    setDraftQuestions(prev => [...prev, {
-      tempId: crypto.randomUUID(),
-      question: '',
-      options: ['', '', '', ''],
-      correct_index: 0,
-    }]);
+    setDraftQuestions(prev => [...prev, { tempId: crypto.randomUUID(), ...emptyQuestion() }]);
   };
 
   const updateDraft = (id: string, patch: Partial<DraftQuestion>) => {
@@ -153,8 +146,8 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
       const totalQs = draftQuestions.length + selectedExisting.length;
       if (totalQs === 0) return 'Agrega al menos una pregunta (nueva o existente)';
       for (const d of draftQuestions) {
-        if (!d.question.trim()) return 'Todas las preguntas nuevas deben tener enunciado';
-        if (d.options.some(o => !o.trim())) return 'Todas las opciones de las preguntas nuevas deben tener texto';
+        const err = validateQuestion(d);
+        if (err) return err;
       }
     }
     return null;
@@ -204,8 +197,11 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
       const payload = draftQuestions.map(d => ({
         category: slugForQs,
         question: d.question,
+        question_type: d.question_type,
         options: d.options,
-        correct_index: d.correct_index,
+        correct_index: d.correct_indices[0] ?? 0,
+        correct_indices: d.correct_indices,
+        correct_answers: d.correct_answers,
         created_by: user?.id ?? null,
       }));
       const { data: created, error: qErr } = await supabase.from('questions').insert(payload).select('id');
@@ -415,42 +411,13 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
                       Aún no has creado preguntas nuevas
                     </div>
                   ) : draftQuestions.map((d, idx) => (
-                    <div key={d.tempId} className="border border-border rounded-md p-3 space-y-2 bg-secondary/20">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-medium text-muted-foreground">Pregunta nueva #{idx + 1}</span>
-                        <Button variant="ghost" size="icon" onClick={() => removeDraft(d.tempId)}>
-                          <X className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </div>
-                      <Input
-                        value={d.question}
-                        onChange={e => updateDraft(d.tempId, { question: e.target.value })}
-                        placeholder="Escribe la pregunta"
-                      />
-                      {d.options.map((opt, i) => (
-                        <div key={i} className="flex gap-2 items-center">
-                          <Input
-                            value={opt}
-                            onChange={e => {
-                              const n = [...d.options]; n[i] = e.target.value;
-                              updateDraft(d.tempId, { options: n });
-                            }}
-                            placeholder={`Opción ${String.fromCharCode(65 + i)}`}
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            variant={i === d.correct_index ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => updateDraft(d.tempId, { correct_index: i })}
-                            className={i === d.correct_index ? 'gradient-primary text-primary-foreground' : ''}
-                            title={i === d.correct_index ? 'Correcta' : 'Marcar como correcta'}
-                          >
-                            <Check className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
+                    <QuestionEditor
+                      key={d.tempId}
+                      value={d}
+                      index={idx}
+                      onChange={(patch) => updateDraft(d.tempId, patch)}
+                      onRemove={() => removeDraft(d.tempId)}
+                    />
                   ))}
                 </TabsContent>
 
