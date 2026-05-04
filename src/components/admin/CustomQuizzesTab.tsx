@@ -15,10 +15,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Pencil, Trash2, Eye, EyeOff, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, EyeOff, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import QuestionEditor, { EditableQuestion, emptyQuestion, validateQuestion, TYPE_LABELS } from '@/components/QuestionEditor';
 
 interface Category { id: string; slug: string; name: string; icon: string; }
-interface Question { id: string; category: string; question: string; options?: string[]; correct_index?: number; }
+interface Question { id: string; category: string; question: string; question_type?: string; options?: string[]; correct_index?: number; }
 interface CustomQuiz {
   id: string;
   title: string;
@@ -29,11 +30,8 @@ interface CustomQuiz {
   question_ids: string[];
 }
 
-interface DraftQuestion {
+interface DraftQuestion extends EditableQuestion {
   tempId: string;
-  question: string;
-  options: string[];
-  correct_index: number;
 }
 
 const STEPS = ['Información', 'Preguntas', 'Revisión'] as const;
