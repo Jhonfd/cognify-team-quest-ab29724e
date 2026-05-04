@@ -204,9 +204,7 @@ function QuestionsTab({ toast }: { toast: any }) {
 
   // Form state
   const [fCategory, setFCategory] = useState('');
-  const [fQuestion, setFQuestion] = useState('');
-  const [fOptions, setFOptions] = useState(['', '', '', '']);
-  const [fCorrect, setFCorrect] = useState(0);
+  const [fEditable, setFEditable] = useState<EditableQuestion>(emptyQuestion());
 
   const fetchQ = async () => {
     const [{ data: qData }, { data: catData }] = await Promise.all([
@@ -225,37 +223,46 @@ function QuestionsTab({ toast }: { toast: any }) {
 
   const openNew = () => {
     setEditing(null);
-    setFCategory('algebra');
-    setFQuestion('');
-    setFOptions(['', '', '', '']);
-    setFCorrect(0);
+    setFCategory(dbCategories[0]?.slug ?? 'algebra');
+    setFEditable(emptyQuestion());
     setDialogOpen(true);
   };
 
   const openEdit = (q: Question) => {
     setEditing(q);
     setFCategory(q.category);
-    setFQuestion(q.question);
-    setFOptions([...q.options]);
-    setFCorrect(q.correct_index);
+    setFEditable({
+      question: q.question,
+      question_type: (q.question_type ?? 'single') as QuestionType,
+      options: q.options ?? [],
+      correct_indices: (q.correct_indices && q.correct_indices.length > 0)
+        ? q.correct_indices
+        : (q.correct_index !== undefined && q.correct_index !== null ? [q.correct_index] : []),
+      correct_answers: q.correct_answers ?? [],
+    });
     setDialogOpen(true);
   };
 
   const save = async () => {
-    if (!fQuestion.trim() || fOptions.some(o => !o.trim())) {
-      toast({ title: 'Error', description: 'Completa todos los campos', variant: 'destructive' });
-      return;
-    }
+    const err = validateQuestion(fEditable);
+    if (err) { toast({ title: 'Error', description: err, variant: 'destructive' }); return; }
+
+    const payload = {
+      category: fCategory,
+      question: fEditable.question,
+      question_type: fEditable.question_type,
+      options: fEditable.options,
+      correct_index: fEditable.correct_indices[0] ?? 0,
+      correct_indices: fEditable.correct_indices,
+      correct_answers: fEditable.correct_answers,
+    };
+
     if (editing) {
-      const { error } = await supabase.from('questions').update({
-        category: fCategory, question: fQuestion, options: fOptions, correct_index: fCorrect,
-      }).eq('id', editing.id);
+      const { error } = await supabase.from('questions').update(payload).eq('id', editing.id);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
       toast({ title: 'Actualizada', description: 'Pregunta actualizada' });
     } else {
-      const { error } = await supabase.from('questions').insert({
-        category: fCategory, question: fQuestion, options: fOptions, correct_index: fCorrect, created_by: user?.id,
-      });
+      const { error } = await supabase.from('questions').insert({ ...payload, created_by: user?.id });
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
       toast({ title: 'Creada', description: 'Pregunta agregada' });
     }
@@ -273,6 +280,7 @@ function QuestionsTab({ toast }: { toast: any }) {
   };
 
   const catName = (id: string) => dbCategories.find(c => c.slug === id)?.name ?? id;
+  const typeBadge = (t: QuestionType | undefined) => TYPE_LABELS[t ?? 'single'];
 
   return (
     <div className="space-y-4 mt-4">
@@ -288,14 +296,15 @@ function QuestionsTab({ toast }: { toast: any }) {
       </div>
 
       <div className="glass-card overflow-hidden">
-        <div className="grid grid-cols-[1fr_120px_80px] gap-4 p-4 border-b border-border text-sm font-medium text-muted-foreground">
-          <span>Pregunta</span><span>Categoría</span><span>Acciones</span>
+        <div className="grid grid-cols-[1fr_140px_120px_80px] gap-4 p-4 border-b border-border text-sm font-medium text-muted-foreground">
+          <span>Pregunta</span><span>Tipo</span><span>Categoría</span><span>Acciones</span>
         </div>
         {filtered.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">No hay preguntas</div>
         ) : filtered.map(q => (
-          <div key={q.id} className="grid grid-cols-[1fr_120px_80px] gap-4 p-4 items-center border-b border-border/30 last:border-0">
+          <div key={q.id} className="grid grid-cols-[1fr_140px_120px_80px] gap-4 p-4 items-center border-b border-border/30 last:border-0">
             <span className="text-foreground text-sm truncate">{q.question}</span>
+            <span className="text-xs text-muted-foreground truncate">{typeBadge(q.question_type)}</span>
             <span className="text-xs text-muted-foreground">{catName(q.category)}</span>
             <div className="flex gap-1">
               <Button variant="ghost" size="icon" onClick={() => openEdit(q)}><Pencil className="w-4 h-4" /></Button>
@@ -307,9 +316,9 @@ function QuestionsTab({ toast }: { toast: any }) {
 
       {/* Question Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-xl">
           <DialogHeader><DialogTitle>{editing ? 'Editar pregunta' : 'Nueva pregunta'}</DialogTitle></DialogHeader>
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
             <div className="space-y-2">
               <Label>Categoría</Label>
               <Select value={fCategory} onValueChange={setFCategory}>
@@ -317,35 +326,10 @@ function QuestionsTab({ toast }: { toast: any }) {
                 <SelectContent>{dbCategories.map(c => <SelectItem key={c.slug} value={c.slug}>{c.icon} {c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Pregunta</Label>
-              <Input value={fQuestion} onChange={e => setFQuestion(e.target.value)} placeholder="Escribe la pregunta" />
-            </div>
-            {fOptions.map((opt, i) => (
-              <div key={i} className="space-y-1">
-                <Label className="flex items-center gap-2">
-                  Opción {String.fromCharCode(65 + i)}
-                  {i === fCorrect && <span className="text-xs text-green-400">(Correcta)</span>}
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={opt}
-                    onChange={e => { const n = [...fOptions]; n[i] = e.target.value; setFOptions(n); }}
-                    placeholder={`Opción ${String.fromCharCode(65 + i)}`}
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant={i === fCorrect ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFCorrect(i)}
-                    className={i === fCorrect ? 'gradient-primary text-primary-foreground' : ''}
-                  >
-                    ✓
-                  </Button>
-                </div>
-              </div>
-            ))}
+            <QuestionEditor
+              value={fEditable}
+              onChange={(patch) => setFEditable(prev => ({ ...prev, ...patch }))}
+            />
           </div>
           <DialogFooter>
             <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
