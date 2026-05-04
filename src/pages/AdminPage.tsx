@@ -18,6 +18,8 @@ import { Users, BookOpen, Shield, Plus, Pencil, Trash2, UserCog, FolderOpen, Spa
 import CategoriesTab from '@/components/admin/CategoriesTab';
 import CustomQuizzesTab from '@/components/admin/CustomQuizzesTab';
 
+import QuestionEditor, { EditableQuestion, emptyQuestion, validateQuestion, TYPE_LABELS, QuestionType } from '@/components/QuestionEditor';
+
 type AppRole = 'admin' | 'teacher' | 'student';
 
 interface Profile {
@@ -32,8 +34,11 @@ interface Question {
   id: string;
   category: string;
   question: string;
+  question_type: QuestionType;
   options: string[];
   correct_index: number;
+  correct_indices: number[];
+  correct_answers: string[];
 }
 
 
