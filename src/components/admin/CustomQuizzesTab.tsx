@@ -146,8 +146,8 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
       const totalQs = draftQuestions.length + selectedExisting.length;
       if (totalQs === 0) return 'Agrega al menos una pregunta (nueva o existente)';
       for (const d of draftQuestions) {
-        if (!d.question.trim()) return 'Todas las preguntas nuevas deben tener enunciado';
-        if (d.options.some(o => !o.trim())) return 'Todas las opciones de las preguntas nuevas deben tener texto';
+        const err = validateQuestion(d);
+        if (err) return err;
       }
     }
     return null;
