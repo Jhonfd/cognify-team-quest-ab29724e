@@ -411,42 +411,13 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
                       Aún no has creado preguntas nuevas
                     </div>
                   ) : draftQuestions.map((d, idx) => (
-                    <div key={d.tempId} className="border border-border rounded-md p-3 space-y-2 bg-secondary/20">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-medium text-muted-foreground">Pregunta nueva #{idx + 1}</span>
-                        <Button variant="ghost" size="icon" onClick={() => removeDraft(d.tempId)}>
-                          <X className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </div>
-                      <Input
-                        value={d.question}
-                        onChange={e => updateDraft(d.tempId, { question: e.target.value })}
-                        placeholder="Escribe la pregunta"
-                      />
-                      {d.options.map((opt, i) => (
-                        <div key={i} className="flex gap-2 items-center">
-                          <Input
-                            value={opt}
-                            onChange={e => {
-                              const n = [...d.options]; n[i] = e.target.value;
-                              updateDraft(d.tempId, { options: n });
-                            }}
-                            placeholder={`Opción ${String.fromCharCode(65 + i)}`}
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            variant={i === d.correct_index ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => updateDraft(d.tempId, { correct_index: i })}
-                            className={i === d.correct_index ? 'gradient-primary text-primary-foreground' : ''}
-                            title={i === d.correct_index ? 'Correcta' : 'Marcar como correcta'}
-                          >
-                            <Check className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
+                    <QuestionEditor
+                      key={d.tempId}
+                      value={d}
+                      index={idx}
+                      onChange={(patch) => updateDraft(d.tempId, patch)}
+                      onRemove={() => removeDraft(d.tempId)}
+                    />
                   ))}
                 </TabsContent>
 
