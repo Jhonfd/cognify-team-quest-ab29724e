@@ -197,8 +197,11 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
       const payload = draftQuestions.map(d => ({
         category: slugForQs,
         question: d.question,
+        question_type: d.question_type,
         options: d.options,
-        correct_index: d.correct_index,
+        correct_index: d.correct_indices[0] ?? 0,
+        correct_indices: d.correct_indices,
+        correct_answers: d.correct_answers,
         created_by: user?.id ?? null,
       }));
       const { data: created, error: qErr } = await supabase.from('questions').insert(payload).select('id');
