@@ -117,12 +117,7 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
 
   /* ---------- Drafts ---------- */
   const addDraft = () => {
-    setDraftQuestions(prev => [...prev, {
-      tempId: crypto.randomUUID(),
-      question: '',
-      options: ['', '', '', ''],
-      correct_index: 0,
-    }]);
+    setDraftQuestions(prev => [...prev, { tempId: crypto.randomUUID(), ...emptyQuestion() }]);
   };
 
   const updateDraft = (id: string, patch: Partial<DraftQuestion>) => {
