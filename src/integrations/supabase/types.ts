@@ -344,24 +344,17 @@ export type Database = {
       }
     }
     Views: {
-      profile_names: {
-        Row: {
-          name: string | null
-          user_id: string | null
-        }
-        Insert: {
-          name?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          name?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       generate_group_invite_code: { Args: never; Returns: string }
+      get_profile_names: {
+        Args: never
+        Returns: {
+          name: string
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
