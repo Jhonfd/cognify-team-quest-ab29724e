@@ -54,7 +54,10 @@ export default function GroupsPage() {
 
   const fetchData = async () => {
     const [{ data: groupsData }, { data: profs }, { data: gm }] = await Promise.all([
-      supabase.from('groups').select('*').order('created_at', { ascending: false }),
+      supabase
+        .from('groups')
+        .select('id, name, description, teacher_id, created_at, updated_at')
+        .order('created_at', { ascending: false }),
       supabase.from('profiles').select('user_id, name, email'),
       supabase.from('group_members').select('group_id, user_id'),
     ]);
@@ -71,8 +74,18 @@ export default function GroupsPage() {
     });
     setAssignedIds(assigned);
 
+    // Fetch invite codes via RPC (only returned for groups the caller owns or if admin)
+    const codeEntries = await Promise.all(
+      (groupsData ?? []).map(async (g: any) => {
+        const { data } = await supabase.rpc('get_group_invite_code', { p_group_id: g.id });
+        return [g.id, (data as string) ?? ''] as const;
+      })
+    );
+    const codeMap: Record<string, string> = Object.fromEntries(codeEntries);
+
     const gs: Group[] = (groupsData ?? []).map((g: any) => ({
       ...g,
+      invite_code: codeMap[g.id] ?? '',
       teacher_name: pmap[g.teacher_id]?.name || 'Desconocido',
       member_count: counts[g.id] ?? 0,
     }));
