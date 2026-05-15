@@ -43,19 +43,17 @@ export default function JoinGroupCard() {
   const join = async () => {
     if (!code.trim() || !user) return;
     setLoading(true);
-    const { data: g, error: gErr } = await supabase
-      .from('groups')
-      .select('id, name')
-      .eq('invite_code', code.trim().toUpperCase())
-      .maybeSingle();
-    if (gErr || !g) {
-      setLoading(false);
-      return toast({ title: 'Código inválido', description: 'No existe un grupo con ese código', variant: 'destructive' });
-    }
-    const { error } = await supabase.from('group_members').insert({ group_id: g.id, user_id: user.id });
+    const { data: groupId, error } = await supabase.rpc('join_group_by_code', {
+      p_code: code.trim().toUpperCase(),
+    });
     setLoading(false);
-    if (error) return toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    toast({ title: '¡Te uniste!', description: `Ahora eres parte de ${g.name}` });
+    if (error || !groupId) {
+      const msg = error?.message?.includes('invalid_code')
+        ? 'No existe un grupo con ese código'
+        : (error?.message ?? 'No se pudo unir al grupo');
+      return toast({ title: 'Código inválido', description: msg, variant: 'destructive' });
+    }
+    toast({ title: '¡Te uniste!', description: 'Ahora eres parte del grupo' });
     setCode('');
     fetchMyGroup();
   };
