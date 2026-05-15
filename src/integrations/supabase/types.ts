@@ -344,7 +344,21 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profile_names: {
+        Row: {
+          name: string | null
+          user_id: string | null
+        }
+        Insert: {
+          name?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          name?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       generate_group_invite_code: { Args: never; Returns: string }
