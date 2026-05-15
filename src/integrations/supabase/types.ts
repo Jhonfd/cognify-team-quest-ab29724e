@@ -348,6 +348,7 @@ export type Database = {
     }
     Functions: {
       generate_group_invite_code: { Args: never; Returns: string }
+      get_group_invite_code: { Args: { p_group_id: string }; Returns: string }
       get_profile_names: {
         Args: never
         Returns: {
@@ -362,6 +363,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      join_group_by_code: { Args: { p_code: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "student" | "teacher"
