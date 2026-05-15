@@ -30,11 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
     
     if (!data) {
-      // Role not yet created — check user metadata and create it
-      const { data: { user } } = await supabase.auth.getUser();
-      const metaRole = (user?.user_metadata?.role as AppRole) || 'student';
-      await supabase.from('user_roles').insert({ user_id: userId, role: metaRole });
-      setUserRole(metaRole);
+      // Always default new users to 'student'. Elevated roles must be granted by an admin
+      // via the Admin → Roles tab. Never trust client-supplied user_metadata for privileges.
+      await supabase.from('user_roles').insert({ user_id: userId, role: 'student' });
+      setUserRole('student');
     } else {
       setUserRole(data.role as AppRole);
     }

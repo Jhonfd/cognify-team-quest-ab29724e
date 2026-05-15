@@ -48,7 +48,7 @@ export default function RankingPage() {
   const fetchRanking = async () => {
     const [{ data: results }, { data: profiles }, { data: groupsData }, { data: members }] = await Promise.all([
       supabase.from('quiz_results').select('user_id, score, total_questions, subject, completed_at'),
-      supabase.from('profiles').select('user_id, name'),
+      supabase.rpc('get_profile_names'),
       supabase.from('groups').select('id, name'),
       supabase.from('group_members').select('group_id, user_id'),
     ]);

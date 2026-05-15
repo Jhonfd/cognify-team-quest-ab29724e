@@ -348,6 +348,13 @@ export type Database = {
     }
     Functions: {
       generate_group_invite_code: { Args: never; Returns: string }
+      get_profile_names: {
+        Args: never
+        Returns: {
+          name: string
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
