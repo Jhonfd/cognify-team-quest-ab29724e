@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,11 @@ interface CustomQuiz {
   description: string;
   category_id: string | null;
   question_count: number;
+  time_mode: 'none' | 'total' | 'per_question';
+  time_total_seconds: number | null;
+  time_per_question_seconds: number | null;
+  starts_at: string | null;
+  ends_at: string | null;
 }
 
 export default function QuizPage() {
@@ -54,6 +59,11 @@ export default function QuizPage() {
   const [answered, setAnswered] = useState(false);
   const [finished, setFinished] = useState(false);
 
+  // Timer state
+  const [activeTimeMode, setActiveTimeMode] = useState<'none' | 'total' | 'per_question'>('none');
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [perQSeconds, setPerQSeconds] = useState<number | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
       const { data: cats } = await supabase.from('categories').select('*').order('name');
@@ -66,7 +76,9 @@ export default function QuizPage() {
         (cats ?? []).map((c: any) => ({ ...c, count: counts[c.slug] || 0 }))
       );
 
-      const { data: quizData } = await supabase.from('custom_quizzes').select('id, title, description, category_id').eq('is_active', true);
+      const { data: quizData } = await supabase.from('custom_quizzes')
+        .select('id, title, description, category_id, time_mode, time_total_seconds, time_per_question_seconds, starts_at, ends_at')
+        .eq('is_active', true);
       const { data: links } = await supabase.from('custom_quiz_questions').select('quiz_id');
       const linkCounts: Record<string, number> = {};
       links?.forEach(l => { linkCounts[l.quiz_id] = (linkCounts[l.quiz_id] || 0) + 1; });
@@ -103,6 +115,16 @@ export default function QuizPage() {
   };
 
   const startCustomQuiz = async (quiz: CustomQuiz) => {
+    const now = new Date();
+    if (quiz.starts_at && new Date(quiz.starts_at) > now) {
+      toast({ title: 'Aún no disponible', description: `Disponible desde ${new Date(quiz.starts_at).toLocaleString()}`, variant: 'destructive' });
+      return;
+    }
+    if (quiz.ends_at && new Date(quiz.ends_at) < now) {
+      toast({ title: 'Quiz cerrado', description: 'La ventana de disponibilidad ya finalizó.', variant: 'destructive' });
+      return;
+    }
+
     const { data: links } = await supabase.from('custom_quiz_questions').select('question_id').eq('quiz_id', quiz.id).order('sort_order');
     if (!links || links.length === 0) return;
     const ids = links.map(l => l.question_id);
@@ -116,10 +138,24 @@ export default function QuizPage() {
     setQuizLabel(`✨ ${quiz.title}`);
     setQuizSubject(quiz.title);
     resetState();
+
+    // Configure timer
+    setActiveTimeMode(quiz.time_mode ?? 'none');
+    if (quiz.time_mode === 'total' && quiz.time_total_seconds) {
+      setSecondsLeft(quiz.time_total_seconds);
+      setPerQSeconds(null);
+    } else if (quiz.time_mode === 'per_question' && quiz.time_per_question_seconds) {
+      setPerQSeconds(quiz.time_per_question_seconds);
+      setSecondsLeft(quiz.time_per_question_seconds);
+    } else {
+      setSecondsLeft(null);
+      setPerQSeconds(null);
+    }
   };
 
   const resetState = () => {
     setCurrentQ(0); setSelectedSet([]); setOpenText(''); setScore(0); setAnswered(false); setFinished(false);
+    setActiveTimeMode('none'); setSecondsLeft(null); setPerQSeconds(null);
   };
 
   const question = questions[currentQ];
@@ -181,17 +217,21 @@ export default function QuizPage() {
     if (currentQ + 1 >= questions.length) {
       setFinished(true);
       saveResult();
+      setSecondsLeft(null);
     } else {
       setCurrentQ(c => c + 1);
       setSelectedSet([]);
       setOpenText('');
       setAnswered(false);
+      // Reset per-question timer
+      if (activeTimeMode === 'per_question' && perQSeconds) {
+        setSecondsLeft(perQSeconds);
+      }
     }
   };
 
   const saveResult = async () => {
     if (!user) return;
-    // Final score uses ceil/round of accumulated partial points
     const finalScore = Math.round(score);
     await supabase.from('quiz_results').insert({
       user_id: user.id,
@@ -201,6 +241,41 @@ export default function QuizPage() {
     });
     toast({ title: '¡Quiz completado!', description: `Puntaje guardado: ${finalScore}/${questions.length}` });
   };
+
+  // Timer tick
+  const submitRef = useRef(submitAnswer);
+  const nextRef = useRef(handleNext);
+  useEffect(() => { submitRef.current = submitAnswer; nextRef.current = handleNext; });
+
+  useEffect(() => {
+    if (quizMode !== 'custom' || activeTimeMode === 'none' || finished || secondsLeft === null) return;
+    if (secondsLeft <= 0) {
+      if (activeTimeMode === 'total') {
+        toast({ title: 'Tiempo agotado', description: 'El tiempo del quiz se acabó.', variant: 'destructive' });
+        setFinished(true);
+        saveResult();
+        setSecondsLeft(null);
+      } else if (activeTimeMode === 'per_question') {
+        if (!answered) {
+          submitRef.current();
+          // Brief pause then auto-advance
+          setTimeout(() => nextRef.current(), 600);
+        } else {
+          nextRef.current();
+        }
+      }
+      return;
+    }
+    const t = setTimeout(() => setSecondsLeft(s => (s === null ? null : s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [secondsLeft, quizMode, activeTimeMode, finished, answered]);
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  };
+
 
   const restart = () => {
     setQuizMode(null);
@@ -253,18 +328,54 @@ export default function QuizPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
               {customQuizzes.length === 0 ? (
                 <div className="col-span-full p-8 text-center text-muted-foreground">No hay quices personalizados disponibles</div>
-              ) : customQuizzes.map(quiz => (
-                <button
-                  key={quiz.id}
-                  onClick={() => startCustomQuiz(quiz)}
-                  className="glass-card p-6 text-left transition-all hover:border-primary/50 hover:scale-[1.02] space-y-2"
-                >
-                  <span className="text-3xl">✨</span>
-                  <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
-                  <p className="text-sm text-muted-foreground">{quiz.description || 'Quiz personalizado'}</p>
-                  <span className="text-xs text-primary">{quiz.question_count} preguntas</span>
-                </button>
-              ))}
+              ) : customQuizzes.map(quiz => {
+                const now = new Date();
+                const notYet = quiz.starts_at && new Date(quiz.starts_at) > now;
+                const closed = quiz.ends_at && new Date(quiz.ends_at) < now;
+                const disabled = !!(notYet || closed);
+                return (
+                  <button
+                    key={quiz.id}
+                    onClick={() => startCustomQuiz(quiz)}
+                    disabled={disabled}
+                    className={`glass-card p-6 text-left transition-all space-y-2 ${
+                      disabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-primary/50 hover:scale-[1.02]'
+                    }`}
+                  >
+                    <span className="text-3xl">✨</span>
+                    <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
+                    <p className="text-sm text-muted-foreground">{quiz.description || 'Quiz personalizado'}</p>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <span className="text-xs text-primary">{quiz.question_count} preguntas</span>
+                      {quiz.time_mode === 'total' && quiz.time_total_seconds && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {Math.round(quiz.time_total_seconds / 60)} min total
+                        </span>
+                      )}
+                      {quiz.time_mode === 'per_question' && quiz.time_per_question_seconds && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {quiz.time_per_question_seconds}s/pregunta
+                        </span>
+                      )}
+                      {notYet && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/30">
+                          Abre: {new Date(quiz.starts_at!).toLocaleString()}
+                        </span>
+                      )}
+                      {closed && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/30">
+                          Cerrado
+                        </span>
+                      )}
+                      {!notYet && !closed && quiz.ends_at && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                          Cierra: {new Date(quiz.ends_at).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </TabsContent>
         </Tabs>
@@ -304,7 +415,16 @@ export default function QuizPage() {
         <button onClick={restart} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" /> {quizLabel}
         </button>
-        <span className="text-sm font-medium text-primary">Puntaje: {score.toFixed(score % 1 === 0 ? 0 : 2)}</span>
+        <div className="flex items-center gap-3">
+          {secondsLeft !== null && activeTimeMode !== 'none' && (
+            <span className={`flex items-center gap-1 text-sm font-mono px-2 py-1 rounded-md border ${
+              secondsLeft <= 10 ? 'border-destructive/50 bg-destructive/10 text-destructive' : 'border-border bg-secondary text-foreground'
+            }`}>
+              <Clock className="w-4 h-4" /> {formatTime(secondsLeft)}
+            </span>
+          )}
+          <span className="text-sm font-medium text-primary">Puntaje: {score.toFixed(score % 1 === 0 ? 0 : 2)}</span>
+        </div>
       </div>
 
       <div className="flex items-center justify-between">

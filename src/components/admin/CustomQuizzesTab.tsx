@@ -20,6 +20,7 @@ import QuestionEditor, { EditableQuestion, emptyQuestion, validateQuestion, TYPE
 
 interface Category { id: string; slug: string; name: string; icon: string; }
 interface Question { id: string; category: string; question: string; question_type?: string; options?: string[]; correct_index?: number; }
+interface Group { id: string; name: string; }
 interface CustomQuiz {
   id: string;
   title: string;
@@ -28,19 +29,26 @@ interface CustomQuiz {
   is_active: boolean;
   created_by: string;
   question_ids: string[];
+  time_mode: 'none' | 'total' | 'per_question';
+  time_total_seconds: number | null;
+  time_per_question_seconds: number | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  group_ids: string[];
 }
 
 interface DraftQuestion extends EditableQuestion {
   tempId: string;
 }
 
-const STEPS = ['Información', 'Preguntas', 'Revisión'] as const;
+const STEPS = ['Información', 'Preguntas', 'Programación', 'Revisión'] as const;
 
 export default function CustomQuizzesTab({ toast }: { toast: any }) {
   const { user } = useAuth();
   const [quizzes, setQuizzes] = useState<CustomQuiz[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [allGroups, setAllGroups] = useState<Group[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CustomQuiz | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -64,28 +72,55 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
   const [selectedExisting, setSelectedExisting] = useState<string[]>([]);
   const [filterCat, setFilterCat] = useState<string>('all');
 
+  // Step 3: Programación
+  const [fTimeMode, setFTimeMode] = useState<'none' | 'total' | 'per_question'>('none');
+  const [fTimeTotalMin, setFTimeTotalMin] = useState<string>('30');
+  const [fTimePerQSec, setFTimePerQSec] = useState<string>('60');
+  const [fStartsAt, setFStartsAt] = useState<string>(''); // datetime-local
+  const [fEndsAt, setFEndsAt] = useState<string>('');
+  const [fGroupIds, setFGroupIds] = useState<string[]>([]);
+
   const fetchAll = async () => {
-    const [{ data: cats }, { data: qs }, { data: quizData }, { data: links }] = await Promise.all([
+    const [{ data: cats }, { data: qs }, { data: quizData }, { data: links }, { data: groups }, { data: qGroups }] = await Promise.all([
       supabase.from('categories').select('id, slug, name, icon').order('name'),
       supabase.from('questions').select('id, category, question').order('category'),
       supabase.from('custom_quizzes').select('*').order('created_at', { ascending: false }),
       supabase.from('custom_quiz_questions').select('quiz_id, question_id'),
+      supabase.from('groups').select('id, name').order('name'),
+      supabase.from('custom_quiz_groups').select('quiz_id, group_id'),
     ]);
     setCategories((cats as Category[]) ?? []);
     setAllQuestions((qs as Question[]) ?? []);
+    setAllGroups((groups as Group[]) ?? []);
 
     const linkMap: Record<string, string[]> = {};
     links?.forEach(l => {
       if (!linkMap[l.quiz_id]) linkMap[l.quiz_id] = [];
       linkMap[l.quiz_id].push(l.question_id);
     });
+    const groupMap: Record<string, string[]> = {};
+    qGroups?.forEach((g: any) => {
+      if (!groupMap[g.quiz_id]) groupMap[g.quiz_id] = [];
+      groupMap[g.quiz_id].push(g.group_id);
+    });
 
     setQuizzes(
-      (quizData ?? []).map((q: any) => ({ ...q, question_ids: linkMap[q.id] ?? [] }))
+      (quizData ?? []).map((q: any) => ({
+        ...q,
+        question_ids: linkMap[q.id] ?? [],
+        group_ids: groupMap[q.id] ?? [],
+      }))
     );
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  const toLocalInput = (iso: string | null) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
 
   const resetWizard = () => {
     setStep(0);
@@ -94,6 +129,8 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
     setFCatId(categories[0]?.id ?? '');
     setNewCatName(''); setNewCatSlug(''); setNewCatIcon('📚'); setNewCatDesc('');
     setDraftQuestions([]); setSelectedExisting([]); setFilterCat('all');
+    setFTimeMode('none'); setFTimeTotalMin('30'); setFTimePerQSec('60');
+    setFStartsAt(''); setFEndsAt(''); setFGroupIds([]);
   };
 
   const openNew = () => {
@@ -112,6 +149,12 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
     setDraftQuestions([]);
     setSelectedExisting([...q.question_ids]);
     setFilterCat('all');
+    setFTimeMode(q.time_mode ?? 'none');
+    setFTimeTotalMin(q.time_total_seconds ? String(Math.round(q.time_total_seconds / 60)) : '30');
+    setFTimePerQSec(q.time_per_question_seconds ? String(q.time_per_question_seconds) : '60');
+    setFStartsAt(toLocalInput(q.starts_at));
+    setFEndsAt(toLocalInput(q.ends_at));
+    setFGroupIds([...(q.group_ids ?? [])]);
     setDialogOpen(true);
   };
 
@@ -150,6 +193,19 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
         if (err) return err;
       }
     }
+    if (s === 2) {
+      if (fTimeMode === 'total') {
+        const m = Number(fTimeTotalMin);
+        if (!Number.isFinite(m) || m <= 0) return 'Minutos totales debe ser > 0';
+      }
+      if (fTimeMode === 'per_question') {
+        const sec = Number(fTimePerQSec);
+        if (!Number.isFinite(sec) || sec <= 0) return 'Segundos por pregunta debe ser > 0';
+      }
+      if (fStartsAt && fEndsAt && new Date(fStartsAt) >= new Date(fEndsAt)) {
+        return 'La fecha de inicio debe ser anterior a la de cierre';
+      }
+    }
     return null;
   };
 
@@ -163,7 +219,7 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
 
   /* ---------- Save ---------- */
   const save = async () => {
-    for (let s = 0; s <= 1; s++) {
+    for (let s = 0; s <= 2; s++) {
       const err = validateStep(s);
       if (err) { toast({ title: 'Error', description: err, variant: 'destructive' }); setStep(s); return; }
     }
@@ -175,7 +231,6 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
       categoryIdToUse = fCatId;
       categorySlugForQuestions = categories.find(c => c.id === fCatId)?.slug ?? null;
     } else if (catMode === 'new') {
-      // Create category first
       const { data: newCat, error: catErr } = await supabase.from('categories').insert({
         slug: newCatSlug.trim().toLowerCase(),
         name: newCatName.trim(),
@@ -190,7 +245,6 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
       categorySlugForQuestions = newCat.slug;
     }
 
-    // Insert new draft questions into bank
     let createdQuestionIds: string[] = [];
     if (draftQuestions.length > 0) {
       const slugForQs = categorySlugForQuestions ?? 'mixto';
@@ -214,11 +268,22 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
 
     const allQIds = [...selectedExisting, ...createdQuestionIds];
 
+    const scheduleFields = {
+      time_mode: fTimeMode,
+      time_total_seconds: fTimeMode === 'total' ? Math.round(Number(fTimeTotalMin) * 60) : null,
+      time_per_question_seconds: fTimeMode === 'per_question' ? Math.round(Number(fTimePerQSec)) : null,
+      starts_at: fStartsAt ? new Date(fStartsAt).toISOString() : null,
+      ends_at: fEndsAt ? new Date(fEndsAt).toISOString() : null,
+    };
+
+    let quizId: string;
     if (editing) {
       const { error } = await supabase.from('custom_quizzes').update({
         title: fTitle, description: fDesc, category_id: categoryIdToUse, is_active: fActive,
+        ...scheduleFields,
       }).eq('id', editing.id);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+      quizId = editing.id;
 
       await supabase.from('custom_quiz_questions').delete().eq('quiz_id', editing.id);
       const links = allQIds.map((qId, i) => ({ quiz_id: editing.id, question_id: qId, sort_order: i }));
@@ -228,17 +293,28 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
     } else {
       const { data, error } = await supabase.from('custom_quizzes').insert({
         title: fTitle, description: fDesc, category_id: categoryIdToUse, is_active: fActive, created_by: user!.id,
+        ...scheduleFields,
       }).select('id').single();
       if (error || !data) {
         toast({ title: 'Error', description: error?.message ?? 'Error desconocido', variant: 'destructive' });
         return;
       }
+      quizId = data.id;
 
       const links = allQIds.map((qId, i) => ({ quiz_id: data.id, question_id: qId, sort_order: i }));
       if (links.length > 0) await supabase.from('custom_quiz_questions').insert(links);
 
       toast({ title: 'Creado', description: `Quiz creado con ${allQIds.length} pregunta(s)` });
     }
+
+    // Sync group assignments
+    await supabase.from('custom_quiz_groups').delete().eq('quiz_id', quizId);
+    if (fGroupIds.length > 0) {
+      await supabase.from('custom_quiz_groups').insert(
+        fGroupIds.map(gid => ({ quiz_id: quizId, group_id: gid }))
+      );
+    }
+
     setDialogOpen(false);
     fetchAll();
   };
@@ -448,8 +524,70 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
               </Tabs>
             )}
 
-            {/* STEP 2: Revisión */}
+            {/* STEP 2: Programación */}
             {step === 2 && (
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label>Tiempo límite</Label>
+                  <Tabs value={fTimeMode} onValueChange={(v) => setFTimeMode(v as any)}>
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="none">Sin límite</TabsTrigger>
+                      <TabsTrigger value="total">Total del quiz</TabsTrigger>
+                      <TabsTrigger value="per_question">Por pregunta</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="total" className="pt-3">
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={1} value={fTimeTotalMin} onChange={e => setFTimeTotalMin(e.target.value)} className="w-32" />
+                        <span className="text-sm text-muted-foreground">minutos para completar todo el quiz</span>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="per_question" className="pt-3">
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={1} value={fTimePerQSec} onChange={e => setFTimePerQSec(e.target.value)} className="w-32" />
+                        <span className="text-sm text-muted-foreground">segundos por pregunta</span>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="none" className="pt-3">
+                      <p className="text-sm text-muted-foreground">Los estudiantes podrán responder sin restricción de tiempo.</p>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Disponible desde</Label>
+                    <Input type="datetime-local" value={fStartsAt} onChange={e => setFStartsAt(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Vacío = disponible inmediatamente</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Disponible hasta</Label>
+                    <Input type="datetime-local" value={fEndsAt} onChange={e => setFEndsAt(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Vacío = sin fecha de cierre</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Asignar a grupos</Label>
+                  <p className="text-xs text-muted-foreground">Si no seleccionas ningún grupo, el quiz será visible para todos los estudiantes (catálogo general).</p>
+                  <div className="border border-border rounded-md max-h-[200px] overflow-y-auto">
+                    {allGroups.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">No hay grupos creados</div>
+                    ) : allGroups.map(g => (
+                      <label key={g.id} className="flex items-center gap-3 p-3 border-b border-border/30 last:border-0 cursor-pointer hover:bg-secondary/30">
+                        <Checkbox
+                          checked={fGroupIds.includes(g.id)}
+                          onCheckedChange={() => setFGroupIds(prev => prev.includes(g.id) ? prev.filter(x => x !== g.id) : [...prev, g.id])}
+                        />
+                        <span className="text-sm text-foreground flex-1">{g.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Revisión */}
+            {step === 3 && (
               <div className="space-y-4">
                 <div className="glass-card p-4 space-y-2">
                   <h3 className="font-semibold text-foreground">Resumen del quiz</h3>
@@ -469,6 +607,29 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
                     <div className="pl-3 text-xs text-muted-foreground">
                       • {draftQuestions.length} nuevas (se guardarán en el banco)<br />
                       • {selectedExisting.length} del banco existente
+                    </div>
+                    <div className="pt-2 border-t border-border mt-2">
+                      <span className="text-muted-foreground">Tiempo:</span>{' '}
+                      <span className="text-foreground">
+                        {fTimeMode === 'none' && 'Sin límite'}
+                        {fTimeMode === 'total' && `${fTimeTotalMin} minutos totales`}
+                        {fTimeMode === 'per_question' && `${fTimePerQSec} segundos por pregunta`}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Disponibilidad:</span>{' '}
+                      <span className="text-foreground">
+                        {fStartsAt ? new Date(fStartsAt).toLocaleString() : 'Inmediata'}
+                        {' → '}
+                        {fEndsAt ? new Date(fEndsAt).toLocaleString() : 'Sin cierre'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Grupos asignados:</span>{' '}
+                      <span className="text-foreground">
+                        {fGroupIds.length === 0 ? 'Todos (catálogo general)' :
+                          allGroups.filter(g => fGroupIds.includes(g.id)).map(g => g.name).join(', ')}
+                      </span>
                     </div>
                   </div>
                 </div>
