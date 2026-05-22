@@ -193,6 +193,19 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
         if (err) return err;
       }
     }
+    if (s === 2) {
+      if (fTimeMode === 'total') {
+        const m = Number(fTimeTotalMin);
+        if (!Number.isFinite(m) || m <= 0) return 'Minutos totales debe ser > 0';
+      }
+      if (fTimeMode === 'per_question') {
+        const sec = Number(fTimePerQSec);
+        if (!Number.isFinite(sec) || sec <= 0) return 'Segundos por pregunta debe ser > 0';
+      }
+      if (fStartsAt && fEndsAt && new Date(fStartsAt) >= new Date(fEndsAt)) {
+        return 'La fecha de inicio debe ser anterior a la de cierre';
+      }
+    }
     return null;
   };
 
