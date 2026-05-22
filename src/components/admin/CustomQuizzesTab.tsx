@@ -48,6 +48,7 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
   const [quizzes, setQuizzes] = useState<CustomQuiz[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [allGroups, setAllGroups] = useState<Group[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CustomQuiz | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -70,6 +71,14 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
   const [draftQuestions, setDraftQuestions] = useState<DraftQuestion[]>([]);
   const [selectedExisting, setSelectedExisting] = useState<string[]>([]);
   const [filterCat, setFilterCat] = useState<string>('all');
+
+  // Step 3: Programación
+  const [fTimeMode, setFTimeMode] = useState<'none' | 'total' | 'per_question'>('none');
+  const [fTimeTotalMin, setFTimeTotalMin] = useState<string>('30');
+  const [fTimePerQSec, setFTimePerQSec] = useState<string>('60');
+  const [fStartsAt, setFStartsAt] = useState<string>(''); // datetime-local
+  const [fEndsAt, setFEndsAt] = useState<string>('');
+  const [fGroupIds, setFGroupIds] = useState<string[]>([]);
 
   const fetchAll = async () => {
     const [{ data: cats }, { data: qs }, { data: quizData }, { data: links }] = await Promise.all([
