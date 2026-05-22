@@ -44,6 +44,42 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_quiz_groups: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          quiz_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          quiz_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          quiz_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_quiz_groups_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_quiz_groups_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "custom_quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_quiz_questions: {
         Row: {
           id: string
@@ -86,8 +122,13 @@ export type Database = {
           created_at: string
           created_by: string
           description: string
+          ends_at: string | null
           id: string
           is_active: boolean
+          starts_at: string | null
+          time_mode: string
+          time_per_question_seconds: number | null
+          time_total_seconds: number | null
           title: string
           updated_at: string
         }
@@ -96,8 +137,13 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string
+          ends_at?: string | null
           id?: string
           is_active?: boolean
+          starts_at?: string | null
+          time_mode?: string
+          time_per_question_seconds?: number | null
+          time_total_seconds?: number | null
           title: string
           updated_at?: string
         }
@@ -106,8 +152,13 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string
+          ends_at?: string | null
           id?: string
           is_active?: boolean
+          starts_at?: string | null
+          time_mode?: string
+          time_per_question_seconds?: number | null
+          time_total_seconds?: number | null
           title?: string
           updated_at?: string
         }
