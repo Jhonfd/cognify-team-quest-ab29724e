@@ -379,7 +379,16 @@ export default function QuizPage() {
         <button onClick={restart} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" /> {quizLabel}
         </button>
-        <span className="text-sm font-medium text-primary">Puntaje: {score.toFixed(score % 1 === 0 ? 0 : 2)}</span>
+        <div className="flex items-center gap-3">
+          {secondsLeft !== null && activeTimeMode !== 'none' && (
+            <span className={`flex items-center gap-1 text-sm font-mono px-2 py-1 rounded-md border ${
+              secondsLeft <= 10 ? 'border-destructive/50 bg-destructive/10 text-destructive' : 'border-border bg-secondary text-foreground'
+            }`}>
+              <Clock className="w-4 h-4" /> {formatTime(secondsLeft)}
+            </span>
+          )}
+          <span className="text-sm font-medium text-primary">Puntaje: {score.toFixed(score % 1 === 0 ? 0 : 2)}</span>
+        </div>
       </div>
 
       <div className="flex items-center justify-between">
