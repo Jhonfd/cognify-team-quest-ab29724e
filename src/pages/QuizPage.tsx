@@ -59,6 +59,11 @@ export default function QuizPage() {
   const [answered, setAnswered] = useState(false);
   const [finished, setFinished] = useState(false);
 
+  // Timer state
+  const [activeTimeMode, setActiveTimeMode] = useState<'none' | 'total' | 'per_question'>('none');
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [perQSeconds, setPerQSeconds] = useState<number | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
       const { data: cats } = await supabase.from('categories').select('*').order('name');
