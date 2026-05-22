@@ -328,18 +328,54 @@ export default function QuizPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
               {customQuizzes.length === 0 ? (
                 <div className="col-span-full p-8 text-center text-muted-foreground">No hay quices personalizados disponibles</div>
-              ) : customQuizzes.map(quiz => (
-                <button
-                  key={quiz.id}
-                  onClick={() => startCustomQuiz(quiz)}
-                  className="glass-card p-6 text-left transition-all hover:border-primary/50 hover:scale-[1.02] space-y-2"
-                >
-                  <span className="text-3xl">✨</span>
-                  <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
-                  <p className="text-sm text-muted-foreground">{quiz.description || 'Quiz personalizado'}</p>
-                  <span className="text-xs text-primary">{quiz.question_count} preguntas</span>
-                </button>
-              ))}
+              ) : customQuizzes.map(quiz => {
+                const now = new Date();
+                const notYet = quiz.starts_at && new Date(quiz.starts_at) > now;
+                const closed = quiz.ends_at && new Date(quiz.ends_at) < now;
+                const disabled = !!(notYet || closed);
+                return (
+                  <button
+                    key={quiz.id}
+                    onClick={() => startCustomQuiz(quiz)}
+                    disabled={disabled}
+                    className={`glass-card p-6 text-left transition-all space-y-2 ${
+                      disabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-primary/50 hover:scale-[1.02]'
+                    }`}
+                  >
+                    <span className="text-3xl">✨</span>
+                    <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
+                    <p className="text-sm text-muted-foreground">{quiz.description || 'Quiz personalizado'}</p>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <span className="text-xs text-primary">{quiz.question_count} preguntas</span>
+                      {quiz.time_mode === 'total' && quiz.time_total_seconds && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {Math.round(quiz.time_total_seconds / 60)} min total
+                        </span>
+                      )}
+                      {quiz.time_mode === 'per_question' && quiz.time_per_question_seconds && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {quiz.time_per_question_seconds}s/pregunta
+                        </span>
+                      )}
+                      {notYet && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/30">
+                          Abre: {new Date(quiz.starts_at!).toLocaleString()}
+                        </span>
+                      )}
+                      {closed && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/30">
+                          Cerrado
+                        </span>
+                      )}
+                      {!notYet && !closed && quiz.ends_at && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                          Cierra: {new Date(quiz.ends_at).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </TabsContent>
         </Tabs>
