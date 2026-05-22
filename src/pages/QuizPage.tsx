@@ -217,17 +217,21 @@ export default function QuizPage() {
     if (currentQ + 1 >= questions.length) {
       setFinished(true);
       saveResult();
+      setSecondsLeft(null);
     } else {
       setCurrentQ(c => c + 1);
       setSelectedSet([]);
       setOpenText('');
       setAnswered(false);
+      // Reset per-question timer
+      if (activeTimeMode === 'per_question' && perQSeconds) {
+        setSecondsLeft(perQSeconds);
+      }
     }
   };
 
   const saveResult = async () => {
     if (!user) return;
-    // Final score uses ceil/round of accumulated partial points
     const finalScore = Math.round(score);
     await supabase.from('quiz_results').insert({
       user_id: user.id,
@@ -237,6 +241,41 @@ export default function QuizPage() {
     });
     toast({ title: '¡Quiz completado!', description: `Puntaje guardado: ${finalScore}/${questions.length}` });
   };
+
+  // Timer tick
+  const submitRef = useRef(submitAnswer);
+  const nextRef = useRef(handleNext);
+  useEffect(() => { submitRef.current = submitAnswer; nextRef.current = handleNext; });
+
+  useEffect(() => {
+    if (quizMode !== 'custom' || activeTimeMode === 'none' || finished || secondsLeft === null) return;
+    if (secondsLeft <= 0) {
+      if (activeTimeMode === 'total') {
+        toast({ title: 'Tiempo agotado', description: 'El tiempo del quiz se acabó.', variant: 'destructive' });
+        setFinished(true);
+        saveResult();
+        setSecondsLeft(null);
+      } else if (activeTimeMode === 'per_question') {
+        if (!answered) {
+          submitRef.current();
+          // Brief pause then auto-advance
+          setTimeout(() => nextRef.current(), 600);
+        } else {
+          nextRef.current();
+        }
+      }
+      return;
+    }
+    const t = setTimeout(() => setSecondsLeft(s => (s === null ? null : s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [secondsLeft, quizMode, activeTimeMode, finished, answered]);
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  };
+
 
   const restart = () => {
     setQuizMode(null);
