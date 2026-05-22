@@ -76,7 +76,9 @@ export default function QuizPage() {
         (cats ?? []).map((c: any) => ({ ...c, count: counts[c.slug] || 0 }))
       );
 
-      const { data: quizData } = await supabase.from('custom_quizzes').select('id, title, description, category_id').eq('is_active', true);
+      const { data: quizData } = await supabase.from('custom_quizzes')
+        .select('id, title, description, category_id, time_mode, time_total_seconds, time_per_question_seconds, starts_at, ends_at')
+        .eq('is_active', true);
       const { data: links } = await supabase.from('custom_quiz_questions').select('quiz_id');
       const linkCounts: Record<string, number> = {};
       links?.forEach(l => { linkCounts[l.quiz_id] = (linkCounts[l.quiz_id] || 0) + 1; });
