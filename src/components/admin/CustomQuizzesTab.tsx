@@ -524,8 +524,70 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
               </Tabs>
             )}
 
-            {/* STEP 2: Revisión */}
+            {/* STEP 2: Programación */}
             {step === 2 && (
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label>Tiempo límite</Label>
+                  <Tabs value={fTimeMode} onValueChange={(v) => setFTimeMode(v as any)}>
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="none">Sin límite</TabsTrigger>
+                      <TabsTrigger value="total">Total del quiz</TabsTrigger>
+                      <TabsTrigger value="per_question">Por pregunta</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="total" className="pt-3">
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={1} value={fTimeTotalMin} onChange={e => setFTimeTotalMin(e.target.value)} className="w-32" />
+                        <span className="text-sm text-muted-foreground">minutos para completar todo el quiz</span>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="per_question" className="pt-3">
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={1} value={fTimePerQSec} onChange={e => setFTimePerQSec(e.target.value)} className="w-32" />
+                        <span className="text-sm text-muted-foreground">segundos por pregunta</span>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="none" className="pt-3">
+                      <p className="text-sm text-muted-foreground">Los estudiantes podrán responder sin restricción de tiempo.</p>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Disponible desde</Label>
+                    <Input type="datetime-local" value={fStartsAt} onChange={e => setFStartsAt(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Vacío = disponible inmediatamente</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Disponible hasta</Label>
+                    <Input type="datetime-local" value={fEndsAt} onChange={e => setFEndsAt(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Vacío = sin fecha de cierre</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Asignar a grupos</Label>
+                  <p className="text-xs text-muted-foreground">Si no seleccionas ningún grupo, el quiz será visible para todos los estudiantes (catálogo general).</p>
+                  <div className="border border-border rounded-md max-h-[200px] overflow-y-auto">
+                    {allGroups.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">No hay grupos creados</div>
+                    ) : allGroups.map(g => (
+                      <label key={g.id} className="flex items-center gap-3 p-3 border-b border-border/30 last:border-0 cursor-pointer hover:bg-secondary/30">
+                        <Checkbox
+                          checked={fGroupIds.includes(g.id)}
+                          onCheckedChange={() => setFGroupIds(prev => prev.includes(g.id) ? prev.filter(x => x !== g.id) : [...prev, g.id])}
+                        />
+                        <span className="text-sm text-foreground flex-1">{g.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Revisión */}
+            {step === 3 && (
               <div className="space-y-4">
                 <div className="glass-card p-4 space-y-2">
                   <h3 className="font-semibold text-foreground">Resumen del quiz</h3>
@@ -545,6 +607,29 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
                     <div className="pl-3 text-xs text-muted-foreground">
                       • {draftQuestions.length} nuevas (se guardarán en el banco)<br />
                       • {selectedExisting.length} del banco existente
+                    </div>
+                    <div className="pt-2 border-t border-border mt-2">
+                      <span className="text-muted-foreground">Tiempo:</span>{' '}
+                      <span className="text-foreground">
+                        {fTimeMode === 'none' && 'Sin límite'}
+                        {fTimeMode === 'total' && `${fTimeTotalMin} minutos totales`}
+                        {fTimeMode === 'per_question' && `${fTimePerQSec} segundos por pregunta`}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Disponibilidad:</span>{' '}
+                      <span className="text-foreground">
+                        {fStartsAt ? new Date(fStartsAt).toLocaleString() : 'Inmediata'}
+                        {' → '}
+                        {fEndsAt ? new Date(fEndsAt).toLocaleString() : 'Sin cierre'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Grupos asignados:</span>{' '}
+                      <span className="text-foreground">
+                        {fGroupIds.length === 0 ? 'Todos (catálogo general)' :
+                          allGroups.filter(g => fGroupIds.includes(g.id)).map(g => g.name).join(', ')}
+                      </span>
                     </div>
                   </div>
                 </div>
