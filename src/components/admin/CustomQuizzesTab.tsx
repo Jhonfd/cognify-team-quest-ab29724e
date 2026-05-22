@@ -20,6 +20,7 @@ import QuestionEditor, { EditableQuestion, emptyQuestion, validateQuestion, TYPE
 
 interface Category { id: string; slug: string; name: string; icon: string; }
 interface Question { id: string; category: string; question: string; question_type?: string; options?: string[]; correct_index?: number; }
+interface Group { id: string; name: string; }
 interface CustomQuiz {
   id: string;
   title: string;
@@ -28,13 +29,19 @@ interface CustomQuiz {
   is_active: boolean;
   created_by: string;
   question_ids: string[];
+  time_mode: 'none' | 'total' | 'per_question';
+  time_total_seconds: number | null;
+  time_per_question_seconds: number | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  group_ids: string[];
 }
 
 interface DraftQuestion extends EditableQuestion {
   tempId: string;
 }
 
-const STEPS = ['Información', 'Preguntas', 'Revisión'] as const;
+const STEPS = ['Información', 'Preguntas', 'Programación', 'Revisión'] as const;
 
 export default function CustomQuizzesTab({ toast }: { toast: any }) {
   const { user } = useAuth();
