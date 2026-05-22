@@ -115,6 +115,16 @@ export default function QuizPage() {
   };
 
   const startCustomQuiz = async (quiz: CustomQuiz) => {
+    const now = new Date();
+    if (quiz.starts_at && new Date(quiz.starts_at) > now) {
+      toast({ title: 'Aún no disponible', description: `Disponible desde ${new Date(quiz.starts_at).toLocaleString()}`, variant: 'destructive' });
+      return;
+    }
+    if (quiz.ends_at && new Date(quiz.ends_at) < now) {
+      toast({ title: 'Quiz cerrado', description: 'La ventana de disponibilidad ya finalizó.', variant: 'destructive' });
+      return;
+    }
+
     const { data: links } = await supabase.from('custom_quiz_questions').select('question_id').eq('quiz_id', quiz.id).order('sort_order');
     if (!links || links.length === 0) return;
     const ids = links.map(l => l.question_id);
@@ -128,10 +138,24 @@ export default function QuizPage() {
     setQuizLabel(`✨ ${quiz.title}`);
     setQuizSubject(quiz.title);
     resetState();
+
+    // Configure timer
+    setActiveTimeMode(quiz.time_mode ?? 'none');
+    if (quiz.time_mode === 'total' && quiz.time_total_seconds) {
+      setSecondsLeft(quiz.time_total_seconds);
+      setPerQSeconds(null);
+    } else if (quiz.time_mode === 'per_question' && quiz.time_per_question_seconds) {
+      setPerQSeconds(quiz.time_per_question_seconds);
+      setSecondsLeft(quiz.time_per_question_seconds);
+    } else {
+      setSecondsLeft(null);
+      setPerQSeconds(null);
+    }
   };
 
   const resetState = () => {
     setCurrentQ(0); setSelectedSet([]); setOpenText(''); setScore(0); setAnswered(false); setFinished(false);
+    setActiveTimeMode('none'); setSecondsLeft(null); setPerQSeconds(null);
   };
 
   const question = questions[currentQ];
