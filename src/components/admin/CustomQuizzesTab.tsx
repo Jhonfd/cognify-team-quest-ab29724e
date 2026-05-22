@@ -81,27 +81,46 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
   const [fGroupIds, setFGroupIds] = useState<string[]>([]);
 
   const fetchAll = async () => {
-    const [{ data: cats }, { data: qs }, { data: quizData }, { data: links }] = await Promise.all([
+    const [{ data: cats }, { data: qs }, { data: quizData }, { data: links }, { data: groups }, { data: qGroups }] = await Promise.all([
       supabase.from('categories').select('id, slug, name, icon').order('name'),
       supabase.from('questions').select('id, category, question').order('category'),
       supabase.from('custom_quizzes').select('*').order('created_at', { ascending: false }),
       supabase.from('custom_quiz_questions').select('quiz_id, question_id'),
+      supabase.from('groups').select('id, name').order('name'),
+      supabase.from('custom_quiz_groups').select('quiz_id, group_id'),
     ]);
     setCategories((cats as Category[]) ?? []);
     setAllQuestions((qs as Question[]) ?? []);
+    setAllGroups((groups as Group[]) ?? []);
 
     const linkMap: Record<string, string[]> = {};
     links?.forEach(l => {
       if (!linkMap[l.quiz_id]) linkMap[l.quiz_id] = [];
       linkMap[l.quiz_id].push(l.question_id);
     });
+    const groupMap: Record<string, string[]> = {};
+    qGroups?.forEach((g: any) => {
+      if (!groupMap[g.quiz_id]) groupMap[g.quiz_id] = [];
+      groupMap[g.quiz_id].push(g.group_id);
+    });
 
     setQuizzes(
-      (quizData ?? []).map((q: any) => ({ ...q, question_ids: linkMap[q.id] ?? [] }))
+      (quizData ?? []).map((q: any) => ({
+        ...q,
+        question_ids: linkMap[q.id] ?? [],
+        group_ids: groupMap[q.id] ?? [],
+      }))
     );
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  const toLocalInput = (iso: string | null) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
 
   const resetWizard = () => {
     setStep(0);
@@ -110,6 +129,8 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
     setFCatId(categories[0]?.id ?? '');
     setNewCatName(''); setNewCatSlug(''); setNewCatIcon('📚'); setNewCatDesc('');
     setDraftQuestions([]); setSelectedExisting([]); setFilterCat('all');
+    setFTimeMode('none'); setFTimeTotalMin('30'); setFTimePerQSec('60');
+    setFStartsAt(''); setFEndsAt(''); setFGroupIds([]);
   };
 
   const openNew = () => {
@@ -128,6 +149,12 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
     setDraftQuestions([]);
     setSelectedExisting([...q.question_ids]);
     setFilterCat('all');
+    setFTimeMode(q.time_mode ?? 'none');
+    setFTimeTotalMin(q.time_total_seconds ? String(Math.round(q.time_total_seconds / 60)) : '30');
+    setFTimePerQSec(q.time_per_question_seconds ? String(q.time_per_question_seconds) : '60');
+    setFStartsAt(toLocalInput(q.starts_at));
+    setFEndsAt(toLocalInput(q.ends_at));
+    setFGroupIds([...(q.group_ids ?? [])]);
     setDialogOpen(true);
   };
 
