@@ -219,7 +219,7 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
 
   /* ---------- Save ---------- */
   const save = async () => {
-    for (let s = 0; s <= 1; s++) {
+    for (let s = 0; s <= 2; s++) {
       const err = validateStep(s);
       if (err) { toast({ title: 'Error', description: err, variant: 'destructive' }); setStep(s); return; }
     }
@@ -231,7 +231,6 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
       categoryIdToUse = fCatId;
       categorySlugForQuestions = categories.find(c => c.id === fCatId)?.slug ?? null;
     } else if (catMode === 'new') {
-      // Create category first
       const { data: newCat, error: catErr } = await supabase.from('categories').insert({
         slug: newCatSlug.trim().toLowerCase(),
         name: newCatName.trim(),
@@ -246,7 +245,6 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
       categorySlugForQuestions = newCat.slug;
     }
 
-    // Insert new draft questions into bank
     let createdQuestionIds: string[] = [];
     if (draftQuestions.length > 0) {
       const slugForQs = categorySlugForQuestions ?? 'mixto';
@@ -270,11 +268,22 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
 
     const allQIds = [...selectedExisting, ...createdQuestionIds];
 
+    const scheduleFields = {
+      time_mode: fTimeMode,
+      time_total_seconds: fTimeMode === 'total' ? Math.round(Number(fTimeTotalMin) * 60) : null,
+      time_per_question_seconds: fTimeMode === 'per_question' ? Math.round(Number(fTimePerQSec)) : null,
+      starts_at: fStartsAt ? new Date(fStartsAt).toISOString() : null,
+      ends_at: fEndsAt ? new Date(fEndsAt).toISOString() : null,
+    };
+
+    let quizId: string;
     if (editing) {
       const { error } = await supabase.from('custom_quizzes').update({
         title: fTitle, description: fDesc, category_id: categoryIdToUse, is_active: fActive,
+        ...scheduleFields,
       }).eq('id', editing.id);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+      quizId = editing.id;
 
       await supabase.from('custom_quiz_questions').delete().eq('quiz_id', editing.id);
       const links = allQIds.map((qId, i) => ({ quiz_id: editing.id, question_id: qId, sort_order: i }));
@@ -284,17 +293,28 @@ export default function CustomQuizzesTab({ toast }: { toast: any }) {
     } else {
       const { data, error } = await supabase.from('custom_quizzes').insert({
         title: fTitle, description: fDesc, category_id: categoryIdToUse, is_active: fActive, created_by: user!.id,
+        ...scheduleFields,
       }).select('id').single();
       if (error || !data) {
         toast({ title: 'Error', description: error?.message ?? 'Error desconocido', variant: 'destructive' });
         return;
       }
+      quizId = data.id;
 
       const links = allQIds.map((qId, i) => ({ quiz_id: data.id, question_id: qId, sort_order: i }));
       if (links.length > 0) await supabase.from('custom_quiz_questions').insert(links);
 
       toast({ title: 'Creado', description: `Quiz creado con ${allQIds.length} pregunta(s)` });
     }
+
+    // Sync group assignments
+    await supabase.from('custom_quiz_groups').delete().eq('quiz_id', quizId);
+    if (fGroupIds.length > 0) {
+      await supabase.from('custom_quiz_groups').insert(
+        fGroupIds.map(gid => ({ quiz_id: quizId, group_id: gid }))
+      );
+    }
+
     setDialogOpen(false);
     fetchAll();
   };
