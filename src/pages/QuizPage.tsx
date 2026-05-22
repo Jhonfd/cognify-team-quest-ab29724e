@@ -34,6 +34,11 @@ interface CustomQuiz {
   description: string;
   category_id: string | null;
   question_count: number;
+  time_mode: 'none' | 'total' | 'per_question';
+  time_total_seconds: number | null;
+  time_per_question_seconds: number | null;
+  starts_at: string | null;
+  ends_at: string | null;
 }
 
 export default function QuizPage() {
